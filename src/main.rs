@@ -3,7 +3,7 @@ use std::io::{self, BufRead};
 use std::path::PathBuf;
 use clap::Parser;
 
-use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, Box, DragSource};
+use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, Box, DragSource, EventControllerKey};
 use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT};
 use gtk::gdk::ContentProvider;
 
@@ -114,6 +114,15 @@ fn build_ui(app: &Application) {
         .child(&v_box)
         .build();
     
+    let event_controller = EventControllerKey::builder()
+        .build();
+    event_controller.connect_key_pressed(|_,key,_,_| {
+        if key.name().unwrap() == "Escape"{
+            std::process::exit(0)
+        }
+        return glib::signal::Inhibit(false);
+    });
+    window.add_controller(&event_controller);
 
     if args.from_stdin{
         let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
