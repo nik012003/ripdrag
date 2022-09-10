@@ -6,6 +6,9 @@ use clap::Parser;
 
 #[derive(Parser)]
 struct Args {
+    #[clap(short, long, value_parser, default_value_t = false)]
+    resizable: bool,
+
     #[clap(parse(from_os_str))]
     paths: Vec<std::path::PathBuf>,
 }
@@ -41,6 +44,7 @@ fn build_ui(app: &Application) {
 
     let window = ApplicationWindow::builder()
         .title("ripdrag")
+        .resizable(args.resizable)
         .application(app)
         .child(&v_box)
         .build();
