@@ -22,11 +22,11 @@ Only a proof of concept has been written for the time being.
 Working:
 - drag files from the terminal to other applications
 - exit after finished dragging
+- show icons
+- input file paths from stdin
 
 TODO:
 - drag files from other apps to the terminal
-- show icons
-- input file paths from stdin
 - clean up code
 - pacman, deb, rpm, windows and macos build scripts
 - automated builds
