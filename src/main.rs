@@ -92,6 +92,7 @@ fn generate_button_from_path(path: PathBuf, and_exit: bool, icons_only: bool, th
         drag_source.connect_drag_end(|_,_,_| std::process::exit(0));
     }
     button.add_controller(&drag_source);
+    button.connect_clicked(|_| println!("Pressed button"));
     return button;
 }
 
