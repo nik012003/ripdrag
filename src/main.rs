@@ -1,4 +1,4 @@
-use std::{fs, thread};
+use std::thread;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
 use clap::Parser;
@@ -83,16 +83,24 @@ fn generate_button_from_path(path: PathBuf, and_exit: bool, icons_only: bool, th
 
     let button = Button::builder().child(&button_box).build();
     let drag_source = DragSource::builder().build();
+    
+    //TODO: find a better way to get the uri
+    let uri = gtk::glib::Bytes::from_owned(format!("file://{0}", path.canonicalize().unwrap().display()));
     drag_source.connect_prepare(move |_,_,_| 
         Some(ContentProvider::for_bytes(
             "text/uri-list",
-            &gtk::glib::Bytes::from_owned(format!("file://{0}", fs::canonicalize(&path).unwrap().display())) //TODO: find a better way to get the uri
+            &uri 
         )));
+        
     if and_exit {
         drag_source.connect_drag_end(|_,_,_| std::process::exit(0));
     }
+
+    button.connect_clicked(move |_| {
+        opener::open(&path).unwrap();
+        return {}});
+    
     button.add_controller(&drag_source);
-    button.connect_clicked(|_| println!("Pressed button"));
     return button;
 }
 
