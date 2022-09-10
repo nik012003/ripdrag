@@ -1,12 +1,11 @@
-use gtk::gdk::ContentProvider;
-use gtk::glib;
-use gtk::glib::{clone, Continue, MainContext, PRIORITY_DEFAULT};
 use std::{fs, thread};
 use std::io::{self, BufRead};
 use std::path::PathBuf;
-use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Button, Orientation, CenterBox, Box, DragSource};
 use clap::Parser;
+
+use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, Box, DragSource};
+use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT};
+use gtk::gdk::ContentProvider;
 
 #[derive(Parser)]
 struct Args {
