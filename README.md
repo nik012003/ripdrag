@@ -3,7 +3,7 @@ ripdrag is an application that lets you drag and drop files from and to the term
 
 It's designed to be feature to feature* compatible with [dragon](https://github.com/mwh/dragon), while being written in modern Rust and GTK4.
 
-*some features like --on-top can't be ported over because of limitation in gtk4
+*some features like --on-top can't be ported over because of limitations in gtk4
 # Use cases
 
 Many applications expect files to be dragged into them. Normally you would have to put your beloved terminal aside and open a file manager to that, but now you can just type ```ripdrag FILENAME``` and be done.
@@ -21,11 +21,11 @@ Only a proof of concept has been written for the time being.
 
 Working:
 - drag files from the terminal to other applications
+- exit after finished dragging
 
 TODO:
 - drag files from other apps to the terminal
 - show icons
-- exit after finished dragging
 - input file paths from stdin
 - clean up code
 - pacman, deb, rpm, windows and macos build scripts
