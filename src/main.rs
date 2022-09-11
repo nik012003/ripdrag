@@ -79,14 +79,13 @@ fn get_image_from_path(path: &std::path::PathBuf, thumb_size: i32) -> Option<Ima
 fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: bool, thumb_size: i32, all: bool) -> Vec<Button>{
     let mut button_vec = Vec::new();
 
-    let mut content_providers: Vec<ContentProvider> = Vec::new();
-    for path in &paths{
-        //TODO: find a better way to the uri
-        let uri = gtk::glib::Bytes::from_owned(format!("file://{0}", path.canonicalize().unwrap().display()));
-        content_providers.push(ContentProvider::for_bytes("text/uri-list", &uri));
-    }
+    let uri_list = gtk::glib::Bytes::from_owned(
+        paths.iter()
+        .map(|path| -> String {format!("file://{0}", path.canonicalize().unwrap().display())})
+        .reduce(|accum, item| [accum,item].join("\n")).unwrap()
+    );
 
-    for (i, path) in paths.into_iter().enumerate(){
+    for path in paths.into_iter(){
         let button_box = CenterBox::builder()
             .orientation(Orientation::Horizontal)
             .build();
@@ -111,17 +110,14 @@ fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: 
         let button = Button::builder().child(&button_box).build();
         let drag_source = DragSource::builder().build();
         
-        let content_provider;
         if all{
-            let mut content_providers = Vec::new();
-            for ele in content_providers.clone() {
-                content_providers.push(ele);
-            }
-            content_provider = ContentProvider::new_union(&content_providers);
+            let list = uri_list.clone();
+            drag_source.connect_prepare(move |_,_,_| Some(ContentProvider::for_bytes("text/uri-list", &list)));
         } else {
-            content_provider = content_providers[i].clone();
+            //TODO: find a better way to the uri
+            let uri = gtk::glib::Bytes::from_owned(format!("file://{0}", path.canonicalize().unwrap().display()));
+            drag_source.connect_prepare(move |_,_,_| Some(ContentProvider::for_bytes("text/uri-list", &uri)));
         }
-        drag_source.connect_prepare(move |_,_,_| Some(content_provider.clone()));
 
         if and_exit {
             drag_source.connect_drag_end(|_,_,_| std::process::exit(0));
