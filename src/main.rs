@@ -3,7 +3,7 @@ use std::io::{self, BufRead};
 use std::path::PathBuf;
 use clap::Parser;
 
-use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, Box, DragSource, EventControllerKey};
+use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, EventControllerKey, Image, ScrolledWindow, PolicyType};
 use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT};
 use gtk::gdk::ContentProvider;
 
@@ -24,6 +24,12 @@ struct Args {
     #[clap(short = 'I', long, value_parser, default_value_t = false)]
     from_stdin: bool,
 
+    #[clap(short = 'a', long, value_parser, default_value_t = false)]
+    all: bool,
+
+    #[clap(short = 'A', long, value_parser, default_value_t = false)]
+    all_compact: bool,
+
     #[clap(parse(from_os_str))]
     paths: Vec<std::path::PathBuf>,
 }
@@ -36,7 +42,7 @@ fn main() {
     app.run_with_args(&vec![""]); //we don't want gtk to parse the arguments. cleaner solutions are welcome
 }
 
-fn get_image_from_path(path: &std::path::PathBuf) -> Option<String> {
+fn get_image_from_path(path: &std::path::PathBuf, thumb_size: i32) -> Option<Image> {
     let mime_type;
     if path.metadata().unwrap().is_dir(){
         mime_type = "inode/directory";
@@ -49,8 +55,17 @@ fn get_image_from_path(path: &std::path::PathBuf) -> Option<String> {
             Err(_) => "text/plain"
         };
     }
+    if mime_type.contains("image"){
+        return Some(Image::builder()
+            .file(&path.as_os_str().to_str().unwrap())
+            .pixel_size(thumb_size)
+            .build());
+    }
     return match gtk::gio::content_type_get_generic_icon_name(mime_type) {
-        Some(icon_name) => Some(icon_name.to_string()),
+        Some(icon_name) => Some(Image::builder()
+            .icon_name(&icon_name)
+            .pixel_size(thumb_size)
+            .build()),
         None => None
     };
 }
@@ -60,12 +75,8 @@ fn generate_button_from_path(path: PathBuf, and_exit: bool, icons_only: bool, th
         .orientation(Orientation::Horizontal)
         .build();
     
-    match get_image_from_path(&path){
-        Some(icon_name) => {
-            let image = gtk::Image::builder()
-                .icon_name(&icon_name)
-                .pixel_size(thumb_size)
-                .build();
+    match get_image_from_path(&path,thumb_size){
+        Some(image) => {
             if icons_only{
                 button_box.set_center_widget(Some(&image));
             } else{
@@ -105,22 +116,25 @@ fn generate_button_from_path(path: PathBuf, and_exit: bool, icons_only: bool, th
 }
 
 fn build_ui(app: &Application) {
-    let v_box = Box::builder()
-    .orientation(Orientation::Vertical)
-    .build();
-
+    let list_box = ListBox::new();
+    let scrolled_window = ScrolledWindow::builder()
+        .hscrollbar_policy(PolicyType::Never) // Disable horizontal scrolling
+        .min_content_width(360)
+        .child(&list_box)
+        .build();
+    
     let args =Args::parse();
     for path in args.paths {
         assert!(path.exists(),"{0} : no such file or directory",path.display());
         let button = generate_button_from_path(path,args.and_exit, args.icons_only, args.thumb_size);
-        v_box.append(&button);
+        list_box.append(&button);
     }
 
     let window = ApplicationWindow::builder()
         .title("ripdrag")
         .resizable(args.resizable)
         .application(app)
-        .child(&v_box)
+        .child(&scrolled_window)
         .build();
     
     let event_controller = EventControllerKey::builder()
@@ -152,10 +166,10 @@ fn build_ui(app: &Application) {
         );
         receiver.attach(
             None,
-            clone!(@weak v_box => @default-return Continue(false),
+            clone!(@weak list_box => @default-return Continue(false),
                         move |path| {
                             let button = generate_button_from_path(path,args.and_exit, args.icons_only, args.thumb_size);
-                            v_box.append(&button);
+                            list_box.append(&button);
                             Continue(true)
                         }
             )
