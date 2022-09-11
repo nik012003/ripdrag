@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, EventControllerKey, Image, ScrolledWindow, PolicyType};
-use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT};
+use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes};
 use gtk::gdk::ContentProvider;
 
 #[derive(Parser)]
@@ -76,14 +76,18 @@ fn get_image_from_path(path: &std::path::PathBuf, thumb_size: i32) -> Option<Ima
     };
 }
 
-fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: bool, thumb_size: i32, all: bool) -> Vec<Button>{
-    let mut button_vec = Vec::new();
-
-    let uri_list = gtk::glib::Bytes::from_owned(
+fn generate_uri_list(paths: &Vec<PathBuf>) -> Bytes {
+    return gtk::glib::Bytes::from_owned(
         paths.iter()
         .map(|path| -> String {format!("file://{0}", path.canonicalize().unwrap().display())})
         .reduce(|accum, item| [accum,item].join("\n")).unwrap()
     );
+}
+
+fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: bool, thumb_size: i32, all: bool) -> Vec<Button>{
+    let mut button_vec = Vec::new();
+
+    let uri_list = generate_uri_list(&paths);
 
     for path in paths.into_iter(){
         let button_box = CenterBox::builder()
@@ -133,6 +137,23 @@ fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: 
     return button_vec;
 }
 
+fn generate_compact(paths: Vec<PathBuf>, and_exit: bool) -> Button{
+    let button = Button::builder()
+        .label(&format!("{} elements", paths.len()))
+        .build();
+    let drag_source = DragSource::builder().build();
+    
+    drag_source.connect_prepare(move |_,_,_| 
+        Some(ContentProvider::for_bytes("text/uri-list", &generate_uri_list(&paths)))
+    );
+
+    if and_exit {
+        drag_source.connect_drag_end(|_,_,_| std::process::exit(0));
+    }
+    button.add_controller(&drag_source);
+    return  button;
+}
+
 fn build_ui(app: &Application) {
     let args =Args::parse();
     for path in &args.paths {
@@ -146,10 +167,16 @@ fn build_ui(app: &Application) {
         .child(&list_box)
         .build();
     
-
-    for button in generate_buttons_from_paths(args.paths, args.and_exit, args.icons_only, args.thumb_size, args.all){
-        list_box.append(&button);
+    if args.paths.len() > 0{
+        if args.all_compact{
+            list_box.append(&generate_compact(args.paths.clone(), args.and_exit));
+        }else {
+            for button in generate_buttons_from_paths(args.paths.clone(), args.and_exit, args.icons_only, args.thumb_size, args.all){
+                list_box.append(&button);
+            }
+        }
     }
+
     let window = ApplicationWindow::builder()
         .title("ripdrag")
         .resizable(args.resizable)
@@ -168,6 +195,7 @@ fn build_ui(app: &Application) {
     window.add_controller(&event_controller);
 
     if args.from_stdin{
+        let mut paths: Vec<PathBuf> = args.paths.clone();
         let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
         thread::spawn(move || {
             let stdin = io::stdin();
@@ -176,10 +204,10 @@ fn build_ui(app: &Application) {
             while let Some(line) = lines.next() {
                 let path = PathBuf::from(line.unwrap());
                 if path.exists() {
-                    println!("Adding: {0}", path.display());
+                    println!("Adding: {}", path.display());
                     sender.send(path).expect("Error");
                 }else{
-                    println!("{0} : no such file or directory", path.display())
+                    println!("{} : no such file or directory", path.display())
                 }
             }
             }
@@ -188,8 +216,17 @@ fn build_ui(app: &Application) {
             None,
             clone!(@weak list_box => @default-return Continue(false),
                         move |path| {
-                            let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.thumb_size, args.all);
-                            list_box.append(&button[0]);
+                            if args.all_compact{
+                                paths.push(path);
+                                match list_box.first_child(){
+                                    Some(child) => list_box.remove(&child),
+                                    None => {}
+                                };
+                                list_box.append(&generate_compact(paths.clone(),args.and_exit));
+                            } else {
+                                let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.thumb_size, args.all);
+                                list_box.append(&button[0]);
+                            }
                             Continue(true)
                         }
             )
