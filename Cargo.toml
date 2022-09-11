@@ -1,8 +1,13 @@
 [package]
 name = "ripdrag"
+authors = ["Nicola Guerrera <guerrera.nicola@gmail.com>"]
+description = "Drag and Drop files to and from the terminal"
 version = "0.1.0"
+readme = "README.md"
+repository = "https://github.com/nik012003/ripdrag"
 edition = "2021"
-
+license-file = "LICENSE"
+categories = ["command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
