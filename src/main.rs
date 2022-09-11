@@ -21,6 +21,12 @@ struct Args {
     #[clap(short = 's', long, value_parser, default_value_t = 32)]
     thumb_size: i32,
 
+    #[clap(short = 'w', long, value_parser, default_value_t = 360)]
+    content_width: i32,
+
+    #[clap(short = 'h', long, value_parser, default_value_t = 360)]
+    content_height: i32,
+
     #[clap(short = 'I', long, value_parser, default_value_t = false)]
     from_stdin: bool,
 
@@ -70,66 +76,84 @@ fn get_image_from_path(path: &std::path::PathBuf, thumb_size: i32) -> Option<Ima
     };
 }
 
-fn generate_button_from_path(path: PathBuf, and_exit: bool, icons_only: bool, thumb_size: i32) -> Button{
-    let button_box = CenterBox::builder()
-        .orientation(Orientation::Horizontal)
-        .build();
-    
-    match get_image_from_path(&path,thumb_size){
-        Some(image) => {
-            if icons_only{
-                button_box.set_center_widget(Some(&image));
-            } else{
-                button_box.set_start_widget(Some(&image));
-            }
-        },
-        None => {}
-    };
+fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: bool, thumb_size: i32, all: bool) -> Vec<Button>{
+    let mut button_vec = Vec::new();
 
-    if !icons_only{
-        button_box.set_center_widget(Some(&gtk::Label::builder()
-            .label(path.display().to_string().as_str())
-            .build()));
+    let mut content_providers: Vec<ContentProvider> = Vec::new();
+    for path in &paths{
+        //TODO: find a better way to the uri
+        let uri = gtk::glib::Bytes::from_owned(format!("file://{0}", path.canonicalize().unwrap().display()));
+        content_providers.push(ContentProvider::for_bytes("text/uri-list", &uri));
     }
 
-    let button = Button::builder().child(&button_box).build();
-    let drag_source = DragSource::builder().build();
-    
-    //TODO: find a better way to get the uri
-    let uri = gtk::glib::Bytes::from_owned(format!("file://{0}", path.canonicalize().unwrap().display()));
-    drag_source.connect_prepare(move |_,_,_| 
-        Some(ContentProvider::for_bytes(
-            "text/uri-list",
-            &uri 
-        )));
+    for (i, path) in paths.into_iter().enumerate(){
+        let button_box = CenterBox::builder()
+            .orientation(Orientation::Horizontal)
+            .build();
         
-    if and_exit {
-        drag_source.connect_drag_end(|_,_,_| std::process::exit(0));
-    }
+        match get_image_from_path(&path,thumb_size){
+            Some(image) => {
+                if icons_only{
+                    button_box.set_center_widget(Some(&image));
+                } else{
+                    button_box.set_start_widget(Some(&image));
+                }
+            },
+            None => {}
+        };
 
-    button.connect_clicked(move |_| {
-        opener::open(&path).unwrap();
-        return {}});
-    
-    button.add_controller(&drag_source);
-    return button;
+        if !icons_only{
+            button_box.set_center_widget(Some(&gtk::Label::builder()
+                .label(path.display().to_string().as_str())
+                .build()));
+        }
+
+        let button = Button::builder().child(&button_box).build();
+        let drag_source = DragSource::builder().build();
+        
+        let content_provider;
+        if all{
+            let mut content_providers = Vec::new();
+            for ele in content_providers.clone() {
+                content_providers.push(ele);
+            }
+            content_provider = ContentProvider::new_union(&content_providers);
+        } else {
+            content_provider = content_providers[i].clone();
+        }
+        drag_source.connect_prepare(move |_,_,_| Some(content_provider.clone()));
+
+        if and_exit {
+            drag_source.connect_drag_end(|_,_,_| std::process::exit(0));
+        }
+
+        button.connect_clicked(move |_| {
+            opener::open(&path).unwrap();
+            return {}});
+        
+        button.add_controller(&drag_source);
+        button_vec.push(button);
+    }
+    return button_vec;
 }
 
 fn build_ui(app: &Application) {
+    let args =Args::parse();
+    for path in &args.paths {
+        assert!(path.exists(),"{0} : no such file or directory",path.display());
+    }    
     let list_box = ListBox::new();
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) // Disable horizontal scrolling
-        .min_content_width(360)
+        .min_content_width(args.content_width)
+        .min_content_height(args.content_height)
         .child(&list_box)
         .build();
     
-    let args =Args::parse();
-    for path in args.paths {
-        assert!(path.exists(),"{0} : no such file or directory",path.display());
-        let button = generate_button_from_path(path,args.and_exit, args.icons_only, args.thumb_size);
+
+    for button in generate_buttons_from_paths(args.paths, args.and_exit, args.icons_only, args.thumb_size, args.all){
         list_box.append(&button);
     }
-
     let window = ApplicationWindow::builder()
         .title("ripdrag")
         .resizable(args.resizable)
@@ -168,8 +192,8 @@ fn build_ui(app: &Application) {
             None,
             clone!(@weak list_box => @default-return Continue(false),
                         move |path| {
-                            let button = generate_button_from_path(path,args.and_exit, args.icons_only, args.thumb_size);
-                            list_box.append(&button);
+                            let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.thumb_size, args.all);
+                            list_box.append(&button[0]);
                             Continue(true)
                         }
             )
