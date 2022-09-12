@@ -2,6 +2,7 @@ use std::thread;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
 use clap::Parser;
+use url::Url;
 
 use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, EventControllerKey, Image, ScrolledWindow, PolicyType};
 use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes};
@@ -182,8 +183,7 @@ fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: 
             let list = uri_list.clone();
             drag_source.connect_prepare(move |_,_,_| Some(ContentProvider::for_bytes("text/uri-list", &list)));
         } else {
-            // TODO: find a better way to the uri
-            let uri = gtk::glib::Bytes::from_owned(format!("file:// {0}", path.canonicalize().unwrap().display()));
+            let uri = generate_uri_from_path(&path);
             drag_source.connect_prepare(move |_,_,_| Some(ContentProvider::for_bytes("text/uri-list", &uri)));
         }
 
@@ -248,10 +248,18 @@ fn get_image_from_path(path: &std::path::PathBuf, thumb_size: i32) -> Option<Ima
     };
 }
 
+fn generate_uri_from_path(path: &PathBuf) -> Bytes{
+    return gtk::glib::Bytes::from_owned(
+        Url::from_file_path(path.canonicalize().unwrap())
+        .unwrap().to_string())
+}
+
 fn generate_uri_list(paths: &Vec<PathBuf>) -> Bytes {
     return gtk::glib::Bytes::from_owned(
         paths.iter()
-        .map(|path| -> String {format!("file:// {0}", path.canonicalize().unwrap().display())})
+        .map(|path| -> String {
+            Url::from_file_path(path.canonicalize().unwrap()).unwrap().to_string()
+        })
         .reduce(|accum, item| [accum,item].join("\n")).unwrap()
     );
 }

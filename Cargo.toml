@@ -2,7 +2,7 @@
 name = "ripdrag"
 authors = ["Nicola Guerrera <guerrera.nicola@gmail.com>"]
 description = "Drag and Drop files to and from the terminal"
-version = "0.1.0"
+version = "0.1.1"
 readme = "README.md"
 repository = "https://github.com/nik012003/ripdrag"
 edition = "2021"
@@ -15,3 +15,4 @@ clap = { version = "3.2.20", features = ["derive"] }
 gtk = { version = "0.4.8" , package = "gtk4"}
 infer = "0.9"
 opener = "0.5"
+url = "2.3.1"
