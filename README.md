@@ -7,7 +7,7 @@ ripdrag is an application that lets you drag and drop files from and to the term
 
 It's designed to be feature to feature* compatible with [dragon](https://github.com/mwh/dragon), while being written in modern Rust and GTK4.
 
-![Example](/docs/example.gif)
+![Example](https://user-images.githubusercontent.com/10795335/189586619-bea46531-27ab-42cb-9e79-8a5616e50479.gif)
 
 *some features like --on-top can't be ported over because of limitations in gtk4
 # Use cases
