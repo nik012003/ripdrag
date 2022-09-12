@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [master, staging, trying]
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - 1.60.0
+          - stable
+          - beta
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - uses: swatinem/rust-cache@v1
+      - name: cargo-check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+
+  # We need some "accummulation" job here because bors fails (timeouts) to
+  # listen on matrix builds.
+  # Hence, we have some kind of dummy here that bors can listen on
+  ci-success:
+    name: CI
+    if: ${{ success() }}
+    needs:
+      - check
+    runs-on: ubuntu-latest
+    steps:
+      - name: CI succeeded
+        run: exit 0
