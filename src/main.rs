@@ -29,11 +29,11 @@ struct Cli {
     #[clap(short = 's', long, value_parser, default_value_t = 32)]
     thumb_size: i32,
 
-    /// Width of the main window
+    /// Min width of the main window
     #[clap(short = 'w', long, value_parser, default_value_t = 360)]
     content_width: i32,
 
-    /// Height of the main window
+    /// Default height of the main window
     #[clap(short = 'h', long, value_parser, default_value_t = 360)]
     content_height: i32,
 
@@ -75,7 +75,6 @@ fn build_ui(app: &Application) {
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
         .min_content_width(args.content_width)
-        .min_content_height(args.content_height)
         .child(&list_box)
         .build();
     
@@ -96,6 +95,7 @@ fn build_ui(app: &Application) {
         .resizable(args.resizable)
         .application(app)
         .child(&scrolled_window)
+        .default_height(args.content_height)
         .build();
     
     // Kill the app when Escape is pressed
