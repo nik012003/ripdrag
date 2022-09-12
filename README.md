@@ -31,14 +31,15 @@ ARGS:
 OPTIONS:
     -a, --all                                Drag all the items together
     -A, --all-compact                        Show only the number of items and drag them together
-    -h, --content-height <CONTENT_HEIGHT>    Height of the main window [default: 360]
+    -d, --disable-thumbnails                 Don't load thumbnails from images
+    -h, --content-height <CONTENT_HEIGHT>    Default height of the main window [default: 360]
         --help                               Print help information
     -i, --icons-only                         Only display icons, no labels
     -I, --from-stdin                         Accept paths from stdin
     -r, --resizable                          Make the window resizable
-    -s, --thumb-size <THUMB_SIZE>            Size of icons and thumbnails [default: 32]
-    -w, --content-width <CONTENT_WIDTH>      Width of the main window [default: 360]
-    -x, --and-exit                           Exit after first successful drag or drop      
+    -s, --icon-size <ICON_SIZE>              Size of icons and thumbnails [default: 32]
+    -w, --content-width <CONTENT_WIDTH>      Min width of the main window [default: 360]
+    -x, --and-exit                           Exit after first successful drag or drop
 ```
 # TODO
 There are still lots of thing to be done! Mainly:

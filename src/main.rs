@@ -25,9 +25,13 @@ struct Cli {
     #[clap(short, long, value_parser, default_value_t = false)]
     icons_only: bool,
 
+    /// Don't load thumbnails from images
+    #[clap(short, long, value_parser, default_value_t = false)]
+    disable_thumbnails: bool,
+
     /// Size of icons and thumbnails
     #[clap(short = 's', long, value_parser, default_value_t = 32)]
-    thumb_size: i32,
+    icon_size: i32,
 
     /// Min width of the main window
     #[clap(short = 'w', long, value_parser, default_value_t = 360)]
@@ -83,7 +87,7 @@ fn build_ui(app: &Application) {
         if args.all_compact{
             list_box.append(&generate_compact(args.paths.clone(), args.and_exit));
         }else {
-            for button in generate_buttons_from_paths(args.paths.clone(), args.and_exit, args.icons_only, args.thumb_size, args.all){
+            for button in generate_buttons_from_paths(args.paths.clone(), args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
                 list_box.append(&button);
             }
         }
@@ -139,7 +143,7 @@ fn build_ui(app: &Application) {
                                 };
                                 list_box.append(&generate_compact(paths.clone(),args.and_exit));
                             } else {
-                                let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.thumb_size, args.all);
+                                let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all);
                                 list_box.append(&button[0]);
                             }
                             Continue(true)
@@ -150,7 +154,7 @@ fn build_ui(app: &Application) {
     window.show();
 }
 
-fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: bool, thumb_size: i32, all: bool) -> Vec<Button>{
+fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: bool, disable_thumbnails:bool, icon_size: i32, all: bool) -> Vec<Button>{
     let mut button_vec = Vec::new();
     let uri_list = generate_uri_list(&paths);
 
@@ -161,7 +165,7 @@ fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: 
             .orientation(Orientation::Horizontal)
             .build();
         
-        match get_image_from_path(&path,thumb_size){
+        match get_image_from_path(&path,icon_size,disable_thumbnails){
             Some(image) => {
                 if icons_only{
                     button_box.set_center_widget(Some(&image));
@@ -222,7 +226,7 @@ fn generate_compact(paths: Vec<PathBuf>, and_exit: bool) -> Button{
     return  button;
 }
 
-fn get_image_from_path(path: &std::path::PathBuf, thumb_size: i32) -> Option<Image> {
+fn get_image_from_path(path: &std::path::PathBuf, icon_size: i32, disable_thumbnails: bool) -> Option<Image> {
     let mime_type;
     if path.metadata().unwrap().is_dir(){
         mime_type = "inode/directory";
@@ -235,16 +239,16 @@ fn get_image_from_path(path: &std::path::PathBuf, thumb_size: i32) -> Option<Ima
             Err(_) => "text/plain"
         };
     }
-    if mime_type.contains("image"){
+    if mime_type.contains("image") & !disable_thumbnails {
         return Some(Image::builder()
             .file(&path.as_os_str().to_str().unwrap())
-            .pixel_size(thumb_size)
+            .pixel_size(icon_size)
             .build());
     }
     return match gtk::gio::content_type_get_generic_icon_name(mime_type) {
         Some(icon_name) => Some(Image::builder()
             .icon_name(&icon_name)
-            .pixel_size(thumb_size)
+            .pixel_size(icon_size)
             .build()),
         None => None
     };
