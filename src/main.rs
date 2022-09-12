@@ -2,6 +2,7 @@ use std::thread;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
 use clap::Parser;
+use gtk::gio::ApplicationFlags;
 use url::Url;
 
 use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, EventControllerKey, Image, ScrolledWindow, PolicyType};
@@ -56,6 +57,7 @@ struct Cli {
 fn main() {
     let app = Application::builder()
         .application_id("ga.strin.ripdrag")
+        .flags(ApplicationFlags::NON_UNIQUE)
         .build();
     app.connect_activate(build_ui);
     app.run_with_args(&vec![""]); // we don't want gtk to parse the arguments. cleaner solutions are welcome
