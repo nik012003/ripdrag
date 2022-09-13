@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::thread;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
@@ -5,14 +6,22 @@ use clap::Parser;
 use gtk::gio::ApplicationFlags;
 use url::Url;
 
-use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, EventControllerKey, Image, ScrolledWindow, PolicyType};
-use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes, set_program_name};
-use gtk::gdk::ContentProvider;
+use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, DropTarget, EventControllerKey, Image, ScrolledWindow, PolicyType};
+use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes, Type, set_program_name};
+use gtk::gdk::{ContentProvider,DragAction};
 
 /// Drag and Drop files to and from the terminal
 #[derive(Parser)]
 #[clap(about)]
 struct Cli {
+    /// Act as a target instead of source
+    #[clap(short, long, value_parser, default_value_t = false)]
+    target: bool,
+
+    /// With --target, keep files to drag out
+    #[clap(short, long, value_parser, default_value_t = false, requires = "target" )]
+    keep: bool,
+
     /// Make the window resizable
     #[clap(short, long, value_parser, default_value_t = false)]
     resizable: bool,
@@ -74,7 +83,6 @@ fn build_ui(app: &Application) {
     for path in &args.paths {
         assert!(path.exists(),"{0} : no such file or directory",path.display());
     }
-
     // Create a scrollable list 
     let list_box = ListBox::new();
     let scrolled_window = ScrolledWindow::builder()
@@ -82,18 +90,84 @@ fn build_ui(app: &Application) {
         .min_content_width(args.content_width)
         .child(&list_box)
         .build();
-    
-    // Populate the list with the buttons, if there are any
-    if args.paths.len() > 0{
-        if args.all_compact{
-            list_box.append(&generate_compact(args.paths.clone(), args.and_exit));
-        }else {
-            for button in generate_buttons_from_paths(args.paths.clone(), args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
-                list_box.append(&button);
+        
+    if args.target{
+        let button = Button::builder().label("Drop your files here").build();
+        let drop_target = DropTarget::new(Type::INVALID,DragAction::COPY);
+        drop_target.set_types(&vec![Type::STRING]);
+        let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
+        drop_target.connect_drop(move |_,value,_,_| {
+            let uri_list : String = value.get().unwrap();
+            sender.send(uri_list).expect("Error");
+            true
+        });
+        receiver.attach(
+            None,
+            clone!(@weak list_box => @default-return Continue(false),
+                        move |uri_list| {
+                            for uri in uri_list.lines() {
+                                let path = Url::from_str(uri).expect("path").to_file_path().unwrap();
+                                let button = &generate_buttons_from_paths(vec![path], args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all)[0];
+                                list_box.append(button);
+                            }
+                            Continue(true)
+                        }
+            )
+        );
+        button.add_controller(&drop_target);
+        list_box.append(&button);
+    } else {
+        // Populate the list with the buttons, if there are any
+        if args.paths.len() > 0{
+            if args.all_compact{
+                list_box.append(&generate_compact(args.paths.clone(), args.and_exit));
+            }else {
+                for button in generate_buttons_from_paths(args.paths.clone(), args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
+                    list_box.append(&button);
+                }
             }
         }
-    }
 
+        // Read from stdin and populate the list
+        if args.from_stdin{
+            let mut paths: Vec<PathBuf> = args.paths.clone();
+            let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
+            thread::spawn(move || {
+                let stdin = io::stdin();
+                let mut lines = stdin.lock().lines();
+            
+                while let Some(line) = lines.next() {
+                    let path = PathBuf::from(line.unwrap());
+                    if path.exists() {
+                        println!("Adding: {}", path.display());
+                        sender.send(path).expect("Error");
+                    }else{
+                        println!("{} : no such file or directory", path.display())
+                    }
+                }
+                }
+            );
+            receiver.attach(
+                None,
+                clone!(@weak list_box => @default-return Continue(false),
+                            move |path| {
+                                if args.all_compact{
+                                    paths.push(path);
+                                    match list_box.first_child(){
+                                        Some(child) => list_box.remove(&child),
+                                        None => {}
+                                    };
+                                    list_box.append(&generate_compact(paths.clone(),args.and_exit));
+                                } else {
+                                    let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all);
+                                    list_box.append(&button[0]);
+                                }
+                                Continue(true)
+                            }
+                )
+            );
+        }
+    }
     // Build the main window
     let window = ApplicationWindow::builder()
         .title("ripdrag")
@@ -112,46 +186,6 @@ fn build_ui(app: &Application) {
         return glib::signal::Inhibit(false);
     });
     window.add_controller(&event_controller);
-
-    // Read from stdin and populate the list
-    if args.from_stdin{
-        let mut paths: Vec<PathBuf> = args.paths.clone();
-        let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
-        thread::spawn(move || {
-            let stdin = io::stdin();
-            let mut lines = stdin.lock().lines();
-        
-            while let Some(line) = lines.next() {
-                let path = PathBuf::from(line.unwrap());
-                if path.exists() {
-                    println!("Adding: {}", path.display());
-                    sender.send(path).expect("Error");
-                }else{
-                    println!("{} : no such file or directory", path.display())
-                }
-            }
-            }
-        );
-        receiver.attach(
-            None,
-            clone!(@weak list_box => @default-return Continue(false),
-                        move |path| {
-                            if args.all_compact{
-                                paths.push(path);
-                                match list_box.first_child(){
-                                    Some(child) => list_box.remove(&child),
-                                    None => {}
-                                };
-                                list_box.append(&generate_compact(paths.clone(),args.and_exit));
-                            } else {
-                                let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all);
-                                list_box.append(&button[0]);
-                            }
-                            Continue(true)
-                        }
-            )
-        );
-    }
     window.show();
 }
 
