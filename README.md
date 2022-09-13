@@ -16,10 +16,18 @@ Many applications expect files to be dragged into them. Normally you would have 
 
 Used in combination with a fuzzy finder like [fzf](https://github.com/junegunn/fzf) - e.g. ```ripdrag $(fzf)``` - can make for an amazingly quick and painless terminal experience.
 
-# How to install
+# Installation
+## Debian\Ubuntu
 ```
+sudo apt install cargo
 cargo install ripdrag
 ```
+## Fedora\RHEL
+```
+sudo dnf install cargo cairo-gobject-devel gdk-pixbuf2-devel python2-cairo-devel cairo-devel pango-devel graphene-devel cargo-devel
+cargo install ripdrag
+```
+
 # Usage
 ```
 USAGE:
