@@ -17,14 +17,21 @@ Many applications expect files to be dragged into them. Normally you would have 
 Used in combination with a fuzzy finder like [fzf](https://github.com/junegunn/fzf) - e.g. ```ripdrag $(fzf)``` - can make for an amazingly quick and painless terminal experience.
 
 # Installation
-## Debian\Ubuntu
+First, install the required dependecies:
+### Ubuntu 22.04 or later
 ```
-sudo apt install cargo
-cargo install ripdrag
+sudo apt install cargo libgtk-4-dev build-essential
 ```
-## Fedora\RHEL
+### Fedora\RHEL
 ```
 sudo dnf install cargo cairo-gobject-devel gdk-pixbuf2-devel python2-cairo-devel cairo-devel pango-devel graphene-devel cargo-devel
+```
+### Arch Linux
+```
+sudo pacman -S rust gtk4 base-devel
+```
+then run
+```
 cargo install ripdrag
 ```
 
