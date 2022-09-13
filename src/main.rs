@@ -6,7 +6,7 @@ use gtk::gio::ApplicationFlags;
 use url::Url;
 
 use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, EventControllerKey, Image, ScrolledWindow, PolicyType};
-use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes};
+use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes, set_program_name};
 use gtk::gdk::ContentProvider;
 
 /// Drag and Drop files to and from the terminal
@@ -59,6 +59,7 @@ struct Cli {
 }
 
 fn main() {
+    set_program_name(Some("ripdrag"));
     let app = Application::builder()
         .application_id("ga.strin.ripdrag")
         .flags(ApplicationFlags::NON_UNIQUE)
@@ -158,6 +159,7 @@ fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: 
     let mut button_vec = Vec::new();
     let uri_list = generate_uri_list(&paths);
 
+    //TODO: make this loop multithreaded
     for path in paths.into_iter(){
         // The CenterBox(button_box) contains the image and the optional label
         // The Button contains the CenterBox and can be dragged
@@ -199,7 +201,7 @@ fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: 
         
         // Open the path with the default app
         button.connect_clicked(move |_| {
-            opener::open(&path).unwrap();{}
+            opener::open(&path).unwrap();
         });
         
         button.add_controller(&drag_source);

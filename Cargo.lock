@@ -692,7 +692,7 @@ checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
 
 [[package]]
 name = "ripdrag"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "clap",
  "gtk4",
