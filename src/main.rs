@@ -3,12 +3,12 @@ use std::thread;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
 use clap::Parser;
-use gtk::gio::ApplicationFlags;
 use url::Url;
 
 use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, DropTarget, EventControllerKey, Image, ScrolledWindow, PolicyType};
 use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes, Type, set_program_name};
 use gtk::gdk::{ContentProvider, DragAction};
+use gtk::gio::ApplicationFlags;
 
 /// Drag and Drop files to and from the terminal
 #[derive(Parser)]
@@ -94,57 +94,36 @@ fn build_ui(app: &Application) {
         .min_content_width(args.content_width)
         .child(&list_box)
         .build();
-        
+    
+    // Build the main window
+    let window = ApplicationWindow::builder()
+        .title("ripdrag")
+        .resizable(args.resizable)
+        .application(app)
+        .child(&scrolled_window)
+        .default_height(args.content_height)
+        .build();
+
     if args.target{
-        let button = Button::builder().label("Drop your files here").build();
-        let drop_target = DropTarget::new(Type::INVALID,DragAction::COPY);
-        drop_target.set_types(&vec![Type::STRING]);
-        let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
-        drop_target.connect_drop(move |_,value,_,_| {
-            let data : String = value.get().unwrap();
-            if args.print_path{
-                data.lines().for_each(|line| 
-                    println!("{}",Url::from_str(&line).expect("path").to_file_path().unwrap().canonicalize().unwrap().to_string_lossy())
-                );
-            } else {
-                data.lines().for_each(|line| 
-                    println!("{}",line)
-                );
-            }
-            if args.keep{
-                sender.send(data).expect("Error");
-            }
-            true
-        });
-        let mut paths: Vec<PathBuf> = Vec::new();
-        receiver.attach(
-            None,
-            clone!(@weak list_box => @default-return Continue(false),
-                        move |uri_list| {
-                            if args.all_compact{
-                                let mut new_paths :Vec<PathBuf> = uri_list.lines().map(|uri| -> PathBuf {
-                                        Url::from_str(uri).expect("path").to_file_path().unwrap()
-                                    }).collect();
-                                paths.append(&mut new_paths);
-                                match list_box.last_child(){
-                                    Some(child) => list_box.remove(&child),
-                                    None => {}
-                                };
-                                list_box.append(&generate_compact(paths.clone(),args.and_exit));
-                            } else {
-                                for uri in uri_list.lines() {
-                                    let path = Url::from_str(uri).expect("path").to_file_path().unwrap();
-                                    let button = &generate_buttons_from_paths(vec![path], args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all)[0];
-                                    list_box.append(button);
-                                }
-                            }
-                            Continue(true)
-                        }
-            )
-        );
-        button.add_controller(&drop_target);
-        list_box.append(&button);
+        build_target_ui(list_box,args);
     } else {
+        build_source_ui(list_box,args);
+    }
+    
+    // Kill the app when Escape is pressed
+    let event_controller = EventControllerKey::new();
+    event_controller.connect_key_pressed(|_,key,_,_| {
+        if key.name().unwrap() == "Escape"{
+            std::process::exit(0)
+        }
+        return glib::signal::Inhibit(false);
+    });
+
+    window.add_controller(&event_controller);
+    window.show();
+}
+
+fn build_source_ui(list_box: ListBox, args: Cli){
         // Populate the list with the buttons, if there are any
         if args.paths.len() > 0{
             if args.all_compact{
@@ -195,26 +174,93 @@ fn build_ui(app: &Application) {
                 )
             );
         }
-    }
-    // Build the main window
-    let window = ApplicationWindow::builder()
-        .title("ripdrag")
-        .resizable(args.resizable)
-        .application(app)
-        .child(&scrolled_window)
-        .default_height(args.content_height)
-        .build();
+}
+
+fn build_target_ui(list_box: ListBox, args: Cli){
+    // Generate the Drop Target and button
+    let button = Button::builder().label("Drop your files here").build();
+
+    let drop_target = DropTarget::new(Type::INVALID,DragAction::COPY);
+    // TODO: This is borken on anything other than linux
+    // Figure out a way to accept G_TYPE_FILE other than STRING
+    drop_target.set_types(&vec![Type::STRING]);
     
-    // Kill the app when Escape is pressed
-    let event_controller = EventControllerKey::new();
-    event_controller.connect_key_pressed(|_,key,_,_| {
-        if key.name().unwrap() == "Escape"{
-            std::process::exit(0)
-        }
-        return glib::signal::Inhibit(false);
+    let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
+    
+    drop_target.connect_drop(move |_,value,_,_| {
+        match value.get(){
+            Ok(val) => {
+                // safely extract the path string from the value
+                let data: String = val;
+                if args.print_path{
+                    data.lines().for_each(|line| 
+                        match Url::from_str(&line) {
+                            Ok(url) => match url.to_file_path() {
+                                Ok(path) => {
+                                    println!("{}",path.canonicalize().unwrap().to_string_lossy())
+                                },
+                                Err(_) => {}
+                            },
+                            Err(_) => {}
+                        }
+                    );
+                } else {
+                    data.lines().for_each(|line| 
+                        println!("{}",line)
+                    );
+                }
+                if args.keep{
+                    sender.send(data).expect("Error");
+                }        
+            },
+            Err(_) => {}
+        };
+        true
     });
-    window.add_controller(&event_controller);
-    window.show();
+
+    // get the uri_list from the drop and populate the list of files (--keep)
+    let mut paths: Vec<PathBuf> = Vec::new();
+    receiver.attach(
+        None,
+        clone!(@weak list_box => @default-return Continue(false),
+                    move |uri_list| {
+                        if args.all_compact{
+                            let mut new_paths :Vec<PathBuf> = Vec::new();
+                            uri_list.lines().for_each(|uri| {
+                                    match Url::from_str(uri) {
+                                        Ok(url) => {match url.to_file_path() {
+                                            Ok(path) => {new_paths.push(path)},
+                                            Err(_) => {}
+                                        }},
+                                        Err(_) => {}
+                                    };
+                                });
+                            paths.append(&mut new_paths);
+                            match list_box.last_child(){
+                                Some(child) => list_box.remove(&child),
+                                None => {}
+                            };
+                            list_box.append(&generate_compact(paths.clone(),args.and_exit));
+                        } else {
+                            for uri in uri_list.lines() {
+                                match Url::from_str(uri) {
+                                    Ok(url) => {match url.to_file_path() {
+                                        Ok(path) => {
+                                            let button = &generate_buttons_from_paths(vec![path], args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all)[0];
+                                            list_box.append(button);            
+                                        },
+                                        Err(_) => {}
+                                    }},
+                                    Err(_) => {}
+                                };
+                            }
+                        }
+                        Continue(true)
+                    }
+        )
+    );
+    button.add_controller(&drop_target);
+    list_box.append(&button);
 }
 
 fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: bool, disable_thumbnails:bool, icon_size: i32, all: bool) -> Vec<Button>{
