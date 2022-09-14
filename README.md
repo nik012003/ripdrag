@@ -28,7 +28,7 @@ sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cargo-devel 
 ```
 #### Arch Linux
 ```
-sudo pacman -S rust gtk4 base-devel
+sudo pacman -Sy --needed rust gtk4 base-devel
 ```
 
 ### Install the binary (Do not use sudo, if you don't want it to be installed on root)
