@@ -223,40 +223,36 @@ fn build_target_ui(list_box: ListBox, args: Cli){
     receiver.attach(
         None,
         clone!(@weak list_box => @default-return Continue(false),
-                    move |uri_list| {
-                        if args.all_compact{
-                            let mut new_paths :Vec<PathBuf> = Vec::new();
-                            uri_list.lines().for_each(|uri| {
-                                    match Url::from_str(uri) {
-                                        Ok(url) => {match url.to_file_path() {
-                                            Ok(path) => {new_paths.push(path)},
-                                            Err(_) => {}
-                                        }},
-                                        Err(_) => {}
-                                    };
-                                });
-                            paths.append(&mut new_paths);
+                move |uri_list| {
+                    let mut new_paths :Vec<PathBuf> = Vec::new();
+                    uri_list.lines().for_each(|uri| {
+                            match Url::from_str(uri) {
+                                Ok(url) => {match url.to_file_path() {
+                                    Ok(path) => {new_paths.push(path)},
+                                    Err(_) => {}
+                                }},
+                                Err(_) => {}
+                            };
+                    });
+                    if args.all_compact{
+                        // Hacky solution, check if we already created buttons
+                        if !paths.is_empty(){
                             match list_box.last_child(){
-                                Some(child) => list_box.remove(&child),
+                                Some(child) => {
+                                    list_box.remove(&child)
+                                },
                                 None => {}
                             };
-                            list_box.append(&generate_compact(paths.clone(),args.and_exit));
-                        } else {
-                            for uri in uri_list.lines() {
-                                match Url::from_str(uri) {
-                                    Ok(url) => {match url.to_file_path() {
-                                        Ok(path) => {
-                                            let button = &generate_buttons_from_paths(vec![path], args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all)[0];
-                                            list_box.append(button);            
-                                        },
-                                        Err(_) => {}
-                                    }},
-                                    Err(_) => {}
-                                };
-                            }
                         }
-                        Continue(true)
+                        paths.append(&mut new_paths);
+                        list_box.append(&generate_compact(paths.clone(),args.and_exit));
+                    } else {
+                        for button in &generate_buttons_from_paths(new_paths, args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
+                            list_box.append(button);           
+                        };
                     }
+                    Continue(true)
+                }
         )
     );
     button.add_controller(&drop_target);
