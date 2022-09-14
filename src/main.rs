@@ -8,7 +8,7 @@ use url::Url;
 
 use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, DropTarget, EventControllerKey, Image, ScrolledWindow, PolicyType};
 use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes, Type, set_program_name};
-use gtk::gdk::{ContentProvider,DragAction};
+use gtk::gdk::{ContentProvider, DragAction};
 
 /// Drag and Drop files to and from the terminal
 #[derive(Parser)]
@@ -19,8 +19,12 @@ struct Cli {
     target: bool,
 
     /// With --target, keep files to drag out
-    #[clap(short, long, value_parser, default_value_t = false, requires = "target" )]
+    #[clap(short, long, value_parser, default_value_t = false, requires = "target")]
     keep: bool,
+
+    /// With --target, keep files to drag out
+    #[clap(short, long, value_parser, default_value_t = false, requires = "target")]
+    print_path: bool,
 
     /// Make the window resizable
     #[clap(short, long, value_parser, default_value_t = false)]
@@ -97,18 +101,42 @@ fn build_ui(app: &Application) {
         drop_target.set_types(&vec![Type::STRING]);
         let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
         drop_target.connect_drop(move |_,value,_,_| {
-            let uri_list : String = value.get().unwrap();
-            sender.send(uri_list).expect("Error");
+            let data : String = value.get().unwrap();
+            if args.print_path{
+                data.lines().for_each(|line| 
+                    println!("{}",Url::from_str(&line).expect("path").to_file_path().unwrap().canonicalize().unwrap().to_string_lossy())
+                );
+            } else {
+                data.lines().for_each(|line| 
+                    println!("{}",line)
+                );
+            }
+            if args.keep{
+                sender.send(data).expect("Error");
+            }
             true
         });
+        let mut paths: Vec<PathBuf> = Vec::new();
         receiver.attach(
             None,
             clone!(@weak list_box => @default-return Continue(false),
                         move |uri_list| {
-                            for uri in uri_list.lines() {
-                                let path = Url::from_str(uri).expect("path").to_file_path().unwrap();
-                                let button = &generate_buttons_from_paths(vec![path], args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all)[0];
-                                list_box.append(button);
+                            if args.all_compact{
+                                let mut new_paths :Vec<PathBuf> = uri_list.lines().map(|uri| -> PathBuf {
+                                        Url::from_str(uri).expect("path").to_file_path().unwrap()
+                                    }).collect();
+                                paths.append(&mut new_paths);
+                                match list_box.last_child(){
+                                    Some(child) => list_box.remove(&child),
+                                    None => {}
+                                };
+                                list_box.append(&generate_compact(paths.clone(),args.and_exit));
+                            } else {
+                                for uri in uri_list.lines() {
+                                    let path = Url::from_str(uri).expect("path").to_file_path().unwrap();
+                                    let button = &generate_buttons_from_paths(vec![path], args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all)[0];
+                                    list_box.append(button);
+                                }
                             }
                             Continue(true)
                         }
