@@ -61,8 +61,9 @@ OPTIONS:
     -r, --resizable                          Make the window resizable
     -s, --icon-size <ICON_SIZE>              Size of icons and thumbnails [default: 32]
     -t, --target                             Act as a target instead of source
+    -v, --verbose                            Be verbose
     -w, --content-width <CONTENT_WIDTH>      Min width of the main window [default: 360]
-    -x, --and-exit                           Exit after first successful drag or drop```
+    -x, --and-exit                           Exit after first successful drag or drop
 ```
 
 # TODO

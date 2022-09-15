@@ -14,6 +14,10 @@ use gtk::gio::ApplicationFlags;
 #[derive(Parser)]
 #[clap(about)]
 struct Cli {
+    /// Be verbose
+    #[clap(short, long, value_parser, default_value_t = false)]
+    verbose: bool,
+
     /// Act as a target instead of source
     #[clap(short, long, value_parser, default_value_t = false)]
     target: bool,
@@ -149,7 +153,7 @@ fn build_source_ui(list_box: ListBox, args: Cli){
                         println!("Adding: {}", path.display());
                         sender.send(path).expect("Error");
                     }else{
-                        println!("{} : no such file or directory", path.display())
+                        if args.verbose {println!("{} : no such file or directory", path.display())}
                     }
                 }
                 }
@@ -199,9 +203,9 @@ fn build_target_ui(list_box: ListBox, args: Cli){
                                 Ok(path) => {
                                     println!("{}",path.canonicalize().unwrap().to_string_lossy())
                                 },
-                                Err(_) => {}
+                                Err(_) => { if args.verbose {println!("Cannot convert path to string")}}
                             },
-                            Err(_) => {}
+                            Err(_) => { if args.verbose {println!("Cannot convert drop data to url")} }
                         }
                     );
                 } else {
@@ -213,7 +217,7 @@ fn build_target_ui(list_box: ListBox, args: Cli){
                     sender.send(data).expect("Error");
                 }        
             },
-            Err(_) => {}
+            Err(_) => {if args.verbose {println!("Cannot decode drop data")}}
         };
         true
     });
@@ -247,6 +251,7 @@ fn build_target_ui(list_box: ListBox, args: Cli){
                         paths.append(&mut new_paths);
                         list_box.append(&generate_compact(paths.clone(),args.and_exit));
                     } else {
+                        // This solution is fast, but it's gonna cause problems when --all is used in combinatio with --target
                         for button in &generate_buttons_from_paths(new_paths, args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
                             list_box.append(button);           
                         };
