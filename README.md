@@ -56,14 +56,18 @@ OPTIONS:
         --help                               Print help information
     -i, --icons-only                         Only display icons, no labels
     -I, --from-stdin                         Accept paths from stdin
+    -k, --keep                               With --target, keep files to drag out
+    -p, --print-path                         With --target, keep files to drag out
     -r, --resizable                          Make the window resizable
     -s, --icon-size <ICON_SIZE>              Size of icons and thumbnails [default: 32]
+    -t, --target                             Act as a target instead of source
+    -v, --verbose                            Be verbose
     -w, --content-width <CONTENT_WIDTH>      Min width of the main window [default: 360]
     -x, --and-exit                           Exit after first successful drag or drop
 ```
+
 # TODO
 There are still lots of thing to be done! Mainly:
-- drag files from other apps to the terminal
 - clean up code
 - pacman, deb, rpm, windows and macos build scripts
 - automated builds
