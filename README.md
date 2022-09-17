@@ -30,6 +30,11 @@ sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cargo-devel 
 ```
 sudo pacman -Sy --needed rust gtk4 base-devel
 ```
+### NetBSD
+A pre-compiled binary is available from the official repositories. To install it simply run,
+```
+pkgin install ripdrag
+```
 
 ### Install the binary (Do not use sudo, if you don't want it to be installed on root)
 ```
