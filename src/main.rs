@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::thread;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
+
 use clap::Parser;
 use url::Url;
 
@@ -10,69 +11,68 @@ use gtk::glib::{self,clone, Continue, MainContext, PRIORITY_DEFAULT, Bytes, Type
 use gtk::gdk::{ContentProvider, DragAction};
 use gtk::gio::ApplicationFlags;
 
-/// Drag and Drop files to and from the terminal
 #[derive(Parser)]
-#[clap(about)]
+#[command(about, version)]
 struct Cli {
     /// Be verbose
-    #[clap(short, long, value_parser, default_value_t = false)]
+    #[arg(short, long)]
     verbose: bool,
 
     /// Act as a target instead of source
-    #[clap(short, long, value_parser, default_value_t = false)]
+    #[arg(short, long)]
     target: bool,
 
     /// With --target, keep files to drag out
-    #[clap(short, long, value_parser, default_value_t = false, requires = "target")]
+    #[arg(short, long, requires = "target")]
     keep: bool,
 
     /// With --target, keep files to drag out
-    #[clap(short, long, value_parser, default_value_t = false, requires = "target")]
+    #[arg(short, long, requires = "target")]
     print_path: bool,
 
     /// Make the window resizable
-    #[clap(short, long, value_parser, default_value_t = false)]
+    #[arg(short, long)]
     resizable: bool,
     
     /// Exit after first successful drag or drop 
-    #[clap(short = 'x', long, value_parser, default_value_t = false)]
+    #[arg(short = 'x', long)]
     and_exit: bool,
 
     /// Only display icons, no labels
-    #[clap(short, long, value_parser, default_value_t = false)]
+    #[arg(short, long)]
     icons_only: bool,
 
     /// Don't load thumbnails from images
-    #[clap(short, long, value_parser, default_value_t = false)]
+    #[arg(short, long)]
     disable_thumbnails: bool,
 
     /// Size of icons and thumbnails
-    #[clap(short = 's', long, value_parser, default_value_t = 32)]
+    #[arg(short = 's', long, value_name = "SIZE", default_value_t = 32)]
     icon_size: i32,
 
     /// Min width of the main window
-    #[clap(short = 'w', long, value_parser, default_value_t = 360)]
+    #[arg(short = 'W', long, value_name = "WIDTH", default_value_t = 360)]
     content_width: i32,
 
     /// Default height of the main window
-    #[clap(short = 'h', long, value_parser, default_value_t = 360)]
+    #[arg(short = 'H', long, value_name = "HEIGHT", default_value_t = 360)]
     content_height: i32,
 
     /// Accept paths from stdin
-    #[clap(short = 'I', long, value_parser, default_value_t = false)]
+    #[arg(short = 'I', long)]
     from_stdin: bool,
 
     /// Drag all the items together
-    #[clap(short = 'a', long, value_parser, default_value_t = false)]
+    #[arg(short = 'a', long)]
     all: bool,
 
     /// Show only the number of items and drag them together
-    #[clap(short = 'A', long, value_parser, default_value_t = false)]
+    #[arg(short = 'A', long)]
     all_compact: bool,
 
     /// Paths to the files you want to drag
-    #[clap(parse(from_os_str))]
-    paths: Vec<std::path::PathBuf>,
+    #[arg(value_name = "PATH")]
+    paths: Vec<PathBuf>,
 }
 
 fn main() {
