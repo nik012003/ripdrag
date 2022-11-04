@@ -54,21 +54,22 @@ ARGS:
     <PATHS>...    Paths to the files you want to drag
 
 OPTIONS:
-    -a, --all                                Drag all the items together
-    -A, --all-compact                        Show only the number of items and drag them together
-    -d, --disable-thumbnails                 Don't load thumbnails from images
-    -h, --content-height <CONTENT_HEIGHT>    Default height of the main window [default: 360]
-        --help                               Print help information
-    -i, --icons-only                         Only display icons, no labels
-    -I, --from-stdin                         Accept paths from stdin
-    -k, --keep                               With --target, keep files to drag out
-    -p, --print-path                         With --target, keep files to drag out
-    -r, --resizable                          Make the window resizable
-    -s, --icon-size <ICON_SIZE>              Size of icons and thumbnails [default: 32]
-    -t, --target                             Act as a target instead of source
-    -v, --verbose                            Be verbose
-    -w, --content-width <CONTENT_WIDTH>      Min width of the main window [default: 360]
-    -x, --and-exit                           Exit after first successful drag or drop
+    -v, --verbose                  Be verbose
+    -t, --target                   Act as a target instead of source
+    -k, --keep                     With --target, keep files to drag out
+    -p, --print-path               With --target, keep files to drag out
+    -r, --resizable                Make the window resizable
+    -x, --and-exit                 Exit after first successful drag or drop
+    -i, --icons-only               Only display icons, no labels
+    -d, --disable-thumbnails       Don't load thumbnails from images
+    -s, --icon-size <SIZE>         Size of icons and thumbnails [default: 32]
+    -W, --content-width <WIDTH>    Min width of the main window [default: 360]
+    -H, --content-height <HEIGHT>  Default height of the main window [default: 360]
+    -I, --from-stdin               Accept paths from stdin
+    -a, --all                      Drag all the items together
+    -A, --all-compact              Show only the number of items and drag them together
+    -h, --help                     Print help information
+    -V, --version                  Print version information
 ```
 
 # TODO
