@@ -12,7 +12,7 @@ env:
 jobs:
   check:
     name: check
-    runs-on: ubuntu-22.10
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         rust:
