@@ -2,7 +2,7 @@
 name = "ripdrag"
 authors = ["Nicola Guerrera <guerrera.nicola@gmail.com>"]
 description = "Drag and Drop files to and from the terminal"
-version = "0.2.1"
+version = "0.3.0"
 readme = "README.md"
 repository = "https://github.com/nik012003/ripdrag"
 edition = "2021"
@@ -12,8 +12,8 @@ exclude = ["/.vscode"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
-gtk = { version = "0.4.8", package = "gtk4" }
-infer = "0.9"
-opener = "0.5"
+clap = { version = "4.1.8", features = ["derive"] }
+gtk = { version = "0.6.2", package = "gtk4", features = ["v4_8"] }
+infer = "0.13.0"
+opener = "0.5.2"
 url = "2.3.1"
