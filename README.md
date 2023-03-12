@@ -30,6 +30,12 @@ sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cargo-devel 
 ```
 sudo pacman -Sy --needed rust gtk4 base-devel
 ```
+#### MacOS
+You need to have [homebrew](https://brew.sh) installed.
+```
+brew install rustup gtk4
+rustup-init
+```
 ### NetBSD
 A pre-compiled binary is available from the official repositories. To install it simply run,
 ```
