@@ -36,17 +36,19 @@ You need to have [homebrew](https://brew.sh) installed.
 brew install rustup gtk4
 rustup-init
 ```
-### NetBSD
+#### NetBSD
 A pre-compiled binary is available from the official repositories. To install it simply run,
 ```
 pkgin install ripdrag
 ```
 
-### Install the binary (Do not use sudo, if you don't want it to be installed on root)
+### Install the binary
+(Do not use sudo, if you don't want it to be installed on root)
 ```
 cargo install ripdrag
 ```
-### Add cargo to path (Not added by default)
+### Add cargo to path
+(Not added by default)
 ```
 PATH=$PATH:~/.cargo/bin
 ```
