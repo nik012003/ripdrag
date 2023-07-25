@@ -30,6 +30,7 @@ sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cargo-devel 
 ```
 sudo pacman -Sy --needed rust gtk4 base-devel
 ```
+or via the [AUR Package](https://aur.archlinux.org/packages/ripdrag)
 #### MacOS
 You need to have [homebrew](https://brew.sh) installed.
 ```
