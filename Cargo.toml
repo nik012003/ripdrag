@@ -13,7 +13,7 @@ exclude = ["/.vscode"]
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
-gtk = { version = "0.4.8", package = "gtk4" }
+gtk = { version = "0.4.8", package = "gtk4", features = ["v4_8"] }
 infer = "0.9"
 opener = "0.5"
 url = "2.3.1"

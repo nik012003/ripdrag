@@ -4,6 +4,10 @@ use std::io::{self, BufRead};
 use std::path::PathBuf;
 
 use clap::Parser;
+use gtk::cairo::Content;
+use gtk::gdk::ffi::{GdkFileList, gdk_content_provider_new_typed};
+use gtk::gio::ffi::{GFile, g_file_new_for_path, g_file_get_type, g_file_type_get_type};
+use gtk::glib::subclass::types::FromObject;
 use url::Url;
 
 use gtk::{prelude::*, Application, ApplicationWindow, Button, Orientation, CenterBox, ListBox, DragSource, DropTarget, EventControllerKey, Image, ScrolledWindow, PolicyType};
@@ -184,7 +188,7 @@ fn build_target_ui(list_box: ListBox, args: Cli){
     // Generate the Drop Target and button
     let button = Button::builder().label("Drop your files here").build();
 
-    let drop_target = DropTarget::new(Type::INVALID,DragAction::COPY);
+    let drop_target = DropTarget::new(Type::from_name("TYPE_FILE").unwrap(),DragAction::COPY);
     // TODO: This is borken on anything other than linux
     // Figure out a way to accept G_TYPE_FILE other than STRING
     drop_target.set_types(&vec![Type::STRING]);
@@ -295,13 +299,17 @@ fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: 
 
         let button = Button::builder().child(&button_box).build();
         let drag_source = DragSource::builder().build();
-        
         if all{
             let list = uri_list.clone();
             drag_source.connect_prepare(move |_,_,_| Some(ContentProvider::for_bytes("text/uri-list", &list)));
         } else {
-            let uri = generate_uri_from_path(&path);
-            drag_source.connect_prepare(move |_,_,_| Some(ContentProvider::for_bytes("text/uri-list", &uri)));
+            //let uri = generate_uri_from_path(&path);
+            print!("wtf");
+            unsafe {
+                let gfile =g_file_new_for_path(path.canonicalize().unwrap().to_str().unwrap().as_bytes().as_ptr() as * const i8);
+                let cp: ContentProvider = glib::translate::from_glib_full(gdk_content_provider_new_typed(g_file_get_type(),gfile));
+                drag_source.connect_prepare(move |_,_,_| Some(ContentProvider::from_object(&cp).to_owned()) );
+            };
         }
 
         if and_exit {
