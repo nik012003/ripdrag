@@ -28,7 +28,8 @@ sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cargo-devel 
 ```
 #### Arch Linux
 ripdrag is on the AUR: [ripdrag-git](https://aur.archlinux.org/packages/ripdrag-git)
-To install it manually, you need to install the requirements:
+
+If you want to install it manually, you need to install the requirements:
 ```
 sudo pacman -Sy --needed rust gtk4 base-devel
 ```
