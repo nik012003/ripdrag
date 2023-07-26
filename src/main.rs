@@ -15,7 +15,7 @@ use gtk::{
     EventControllerKey, Image, ListBox, Orientation, PolicyType, ScrolledWindow,
 };
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(about, version)]
 struct Cli {
     /// Be verbose
@@ -80,18 +80,18 @@ struct Cli {
 }
 
 fn main() {
+    let args = Cli::parse();
     set_program_name(Some("ripdrag"));
     let app = Application::builder()
         .application_id("ga.strin.ripdrag")
         .flags(ApplicationFlags::NON_UNIQUE)
         .build();
-    app.connect_activate(build_ui);
-    app.run_with_args(&vec![""]); // we don't want gtk to parse the arguments. cleaner solutions are welcome
+    app.connect_activate(move |app| build_ui(app, args.clone()));
+    app.run_with_args(&[""]); // we don't want gtk to parse the arguments. cleaner solutions are welcome
 }
 
-fn build_ui(app: &Application) {
+fn build_ui(app: &Application, args: Cli) {
     // Parse arguments and check if files exist
-    let args = Cli::parse();
     for path in &args.paths {
         assert!(
             path.exists(),
@@ -128,7 +128,7 @@ fn build_ui(app: &Application) {
         if key.name().unwrap() == "Escape" {
             std::process::exit(0)
         }
-        return glib::signal::Inhibit(false);
+        glib::signal::Inhibit(false)
     });
 
     window.add_controller(event_controller);
@@ -137,7 +137,7 @@ fn build_ui(app: &Application) {
 
 fn build_source_ui(list_box: ListBox, args: Cli) {
     // Populate the list with the buttons, if there are any
-    if args.paths.len() > 0 {
+    if !args.paths.is_empty() {
         if args.all_compact {
             list_box.append(&generate_compact(args.paths.clone(), args.and_exit));
         } else {
@@ -160,17 +160,15 @@ fn build_source_ui(list_box: ListBox, args: Cli) {
         let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
         thread::spawn(move || {
             let stdin = io::stdin();
-            let mut lines = stdin.lock().lines();
+            let lines = stdin.lock().lines();
 
-            while let Some(line) = lines.next() {
+            for line in lines {
                 let path = PathBuf::from(line.unwrap());
                 if path.exists() {
                     println!("Adding: {}", path.display());
                     sender.send(path).expect("Error");
-                } else {
-                    if args.verbose {
-                        println!("{} : no such file or directory", path.display())
-                    }
+                } else if args.verbose {
+                    println!("{} : no such file or directory", path.display())
                 }
             }
         });
@@ -180,10 +178,7 @@ fn build_source_ui(list_box: ListBox, args: Cli) {
                             move |path| {
                                 if args.all_compact{
                                     paths.push(path);
-                                    match list_box.first_child(){
-                                        Some(child) => list_box.remove(&child),
-                                        None => {}
-                                    };
+                                    if let Some(child) = list_box.first_child() { list_box.remove(&child) }
                                     list_box.append(&generate_compact(paths.clone(),args.and_exit));
                                 } else {
                                     let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all);
@@ -267,16 +262,12 @@ fn generate_buttons_from_paths(
             .orientation(Orientation::Horizontal)
             .build();
 
-        match get_image_from_path(&path, icon_size, disable_thumbnails) {
-            Some(image) => {
-                if icons_only {
-                    button_box.set_center_widget(Some(&image));
-                } else {
-                    button_box.set_start_widget(Some(&image));
-                }
+        if let Some(image) = get_image_from_path(&path, icon_size, disable_thumbnails) {
+            match icons_only {
+                true => button_box.set_center_widget(Some(&image)),
+                false => button_box.set_start_widget(Some(&image)),
             }
-            None => {}
-        };
+        }
 
         if !icons_only {
             button_box.set_center_widget(Some(
@@ -312,13 +303,13 @@ fn generate_buttons_from_paths(
         button.add_controller(drag_source);
         button_vec.push(button);
     }
-    return button_vec;
+    button_vec
 }
 
 fn generate_compact(paths: Vec<PathBuf>, and_exit: bool) -> Button {
     // Here we want to generate a single draggable button, containg all the files
     let button = Button::builder()
-        .label(&format!("{} elements", paths.len()))
+        .label(format!("{} elements", paths.len()))
         .build();
     let drag_source = DragSource::new();
 
@@ -333,22 +324,20 @@ fn generate_compact(paths: Vec<PathBuf>, and_exit: bool) -> Button {
         drag_source.connect_drag_end(|_, _, _| std::process::exit(0));
     }
     button.add_controller(drag_source);
-    return button;
+    button
 }
 
 fn get_image_from_path(path: &PathBuf, icon_size: i32, disable_thumbnails: bool) -> Option<Image> {
-    let mime_type;
-    if path.metadata().unwrap().is_dir() {
-        mime_type = "inode/directory";
-    } else {
-        mime_type = match infer::get_from_path(&path) {
+    let mime_type = match path.metadata().unwrap().is_dir() {
+        true => "inode/directory",
+        false => match infer::get_from_path(path) {
             Ok(option) => match option {
                 Some(infer_type) => infer_type.mime_type(),
                 None => "text/plain",
             },
             Err(_) => "text/plain",
-        };
-    }
+        },
+    };
     if mime_type.contains("image") & !disable_thumbnails {
         return Some(
             Image::builder()
@@ -357,28 +346,22 @@ fn get_image_from_path(path: &PathBuf, icon_size: i32, disable_thumbnails: bool)
                 .build(),
         );
     }
-    return match gtk::gio::content_type_get_generic_icon_name(mime_type) {
-        Some(icon_name) => Some(
-            Image::builder()
-                .icon_name(icon_name)
-                .pixel_size(icon_size)
-                .build(),
-        ),
-        None => None,
-    };
+    gtk::gio::content_type_get_generic_icon_name(mime_type).map(|icon_name| {
+        Image::builder()
+            .icon_name(icon_name)
+            .pixel_size(icon_size)
+            .build()
+    })
 }
 
 fn generate_content_provider_from_path(path: &PathBuf) -> ContentProvider {
     unsafe {
         let gfile = File::for_path(path);
-        return glib::translate::from_glib_full(gdk_content_provider_new_typed(
-            g_file_get_type(),
-            gfile,
-        ));
+        glib::translate::from_glib_full(gdk_content_provider_new_typed(g_file_get_type(), gfile))
     }
 }
 
-fn generate_uri_list(paths: &Vec<PathBuf>) -> Bytes {
+fn generate_uri_list(paths: &[PathBuf]) -> Bytes {
     return gtk::glib::Bytes::from_owned(
         paths
             .iter()

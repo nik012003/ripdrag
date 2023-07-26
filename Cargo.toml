@@ -2,7 +2,7 @@
 name = "ripdrag"
 authors = ["Nicola Guerrera <guerrera.nicola@gmail.com>"]
 description = "Drag and Drop files to and from the terminal"
-version = "0.3.1"
+version = "0.3.2"
 readme = "README.md"
 repository = "https://github.com/nik012003/ripdrag"
 edition = "2021"
