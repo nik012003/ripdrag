@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -9,15 +10,16 @@ use gtk::gdk::ffi::gdk_content_provider_new_typed;
 use gtk::gio::ffi::g_file_get_type;
 use url::Url;
 
-use gtk::gdk::{ContentProvider, DragAction};
+use gtk::gdk::{self, ContentProvider, DragAction};
 use gtk::gio::{ApplicationFlags, File, ListModel, ListStore};
 use gtk::glib::{
-    self, clone, set_program_name, Bytes, Continue, MainContext, Priority, PRIORITY_DEFAULT,
+    self, clone, set_program_name, Bytes, Continue, GString, MainContext, Priority,
+    PRIORITY_DEFAULT,
 };
 use gtk::{
     prelude::*, Application, ApplicationWindow, Button, CenterBox, DragSource, DropTarget,
-    EventControllerKey, Image, Label, ListBox, ListItem, ListItemFactory, ListView, MultiSelection,
-    Orientation, PolicyType, ScrolledWindow, SelectionModel, SignalListItemFactory,
+    EventControllerKey, Image, Label, ListBox, ListItem, ListView, MultiSelection, Orientation,
+    PolicyType, ScrolledWindow, SelectionModel, SignalListItemFactory,
 };
 
 mod file_object;
@@ -117,7 +119,7 @@ fn build_ui(app: &Application, args: &Cli) {
     }
     // Create a scrollable list
     let mut list_data = build_list_data(args);
-    setup_factory(&mut list_data.1, args);
+    setup_factory(&mut list_data.1, &list_data.0);
 
     let list_view = ListView::new(Some(list_data.0), Some(list_data.1));
 
@@ -204,14 +206,63 @@ fn build_list_data(args: &Cli) -> (MultiSelection, SignalListItemFactory) {
     (MultiSelection::new(Some(file_model)), factory)
 }
 
-fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
-    factory.connect_setup(|_, list_item| {
+fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource {
+    let drag_source = DragSource::new();
+    drag_source.connect_prepare(clone!(@weak row, @weak selection, => @default-return  Some(Option::unwrap(ContentProvider::NONE).to_owned()), move |me, _, _| {
+        me.set_state(gtk::EventSequenceState::Claimed);
+        let selected = selection.selection();
+        let mut vec : Vec<gio::File> =        Vec::with_capacity(selected.size() as usize);
+        for index in 0..selected.size() {
+            vec.push(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file());
+        }
+        Some(ContentProvider::for_bytes(
+            "text/uri-list",
+            &glib::Bytes::from_owned(vec.iter().fold("".to_string(), |accum, file| [accum, file.uri().to_string()].join("\n")))))
+
+    }));
+
+    drag_source
+}
+
+fn create_gesture_click(row: &CenterBox) -> gtk::GestureClick {
+    let click = gtk::GestureClick::new();
+    click.connect_released(clone!(@weak row => move |me, _, _, _|{
+        if me.current_event_state().contains(gdk::ModifierType::CONTROL_MASK) {
+            return;
+        }
+        let file = get_file(&row);
+        if let Some(file) =  file.path() {
+           let _ = opener::open(file).map_err(|err| {
+                eprint!("{}", err);
+                err
+           });
+        }
+    }));
+
+    click
+}
+
+fn get_file(row: &CenterBox) -> gio::File {
+    let file_widget = if ARGS.get().unwrap().icons_only {
+        row.start_widget().unwrap()
+    } else {
+        row.center_widget().unwrap()
+    };
+    gio::File::for_path(file_widget.downcast::<Label>().unwrap().text())
+}
+
+fn setup_factory(factory: &mut SignalListItemFactory, list: &MultiSelection) {
+    factory.connect_setup(clone!(@weak list => move |_, list_item| {
         let row = CenterBox::default();
+        let drag_source = create_drag_source(&row, &list);
+        let gesture_click = create_gesture_click(&row);
+        row.add_controller(gesture_click);
+        row.add_controller(drag_source);
         list_item
             .downcast_ref::<ListItem>()
             .expect("Needs to be ListItem")
             .set_child(Some(&row));
-    });
+    }));
 
     factory.connect_bind(|_, list_item| {
         let file_object = list_item
@@ -248,12 +299,13 @@ fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
         let label = Label::builder()
             .label(&str)
             .ellipsize(gtk::pango::EllipsizeMode::End)
-            .tooltip_text(&str)
-            .build();
+            .tooltip_text(&str);
+
         if ARGS.get().unwrap().icons_only {
+            file_row.set_start_widget(Some(&label.visible(false).build()));
             file_row.set_center_widget(Some(&file_object.thumbnail()))
         } else {
-            file_row.set_center_widget(Some(&label));
+            file_row.set_center_widget(Some(&label.build()));
             file_row.set_start_widget(Some(&file_object.thumbnail()))
         }
     });
@@ -482,6 +534,12 @@ fn generate_content_provider_from_path(path: &PathBuf) -> ContentProvider {
     unsafe {
         let gfile = File::for_path(path);
         glib::translate::from_glib_full(gdk_content_provider_new_typed(g_file_get_type(), gfile))
+    }
+}
+
+fn generate_content_provider_from_file(file: &gio::File) -> ContentProvider {
+    unsafe {
+        glib::translate::from_glib_full(gdk_content_provider_new_typed(g_file_get_type(), file))
     }
 }
 
