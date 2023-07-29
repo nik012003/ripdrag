@@ -125,7 +125,7 @@ fn build_ui(app: &Application, args: Cli) {
     // Kill the app when Escape is pressed
     let event_controller = EventControllerKey::new();
     event_controller.connect_key_pressed(|_, key, _, _| {
-        if key.name().unwrap() == "Escape" {
+        if key == gtk::gdk::Key::Escape {
             std::process::exit(0)
         }
         glib::signal::Inhibit(false)
