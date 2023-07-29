@@ -412,7 +412,7 @@ dependencies = [
  "futures-task",
  "futures-util",
  "gio-sys",
- "glib-macros",
+ "glib-macros 0.17.10",
  "glib-sys",
  "gobject-sys",
  "libc",
@@ -435,6 +435,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "glib-macros"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "179643c50bf28d20d2f6eacd2531a88f2f5d9747dd0b86b8af1e8bb5dd0de3c0"
+dependencies = [
+ "heck",
+ "proc-macro-crate",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.27",
 ]
 
 [[package]]
@@ -783,6 +797,7 @@ name = "ripdrag"
 version = "0.3.2"
 dependencies = [
  "clap",
+ "glib-macros 0.18.0",
  "gtk4",
  "infer",
  "opener",
