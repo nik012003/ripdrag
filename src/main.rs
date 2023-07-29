@@ -1,19 +1,24 @@
 use std::io::{self, BufRead};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::thread;
 
 use clap::Parser;
+use file_object::FileObject;
 use gtk::gdk::ffi::gdk_content_provider_new_typed;
 use gtk::gio::ffi::g_file_get_type;
 use url::Url;
 
 use gtk::gdk::{ContentProvider, DragAction};
-use gtk::gio::{ApplicationFlags, File};
+use gtk::gio::{ApplicationFlags, File, ListStore};
 use gtk::glib::{self, clone, set_program_name, Bytes, Continue, MainContext, PRIORITY_DEFAULT};
 use gtk::{
     prelude::*, Application, ApplicationWindow, Button, CenterBox, DragSource, DropTarget,
-    EventControllerKey, Image, ListBox, Orientation, PolicyType, ScrolledWindow,
+    EventControllerKey, Image, Label, ListBox, ListItem, ListItemFactory, ListView, MultiSelection,
+    Orientation, PolicyType, ScrolledWindow, SelectionModel, SignalListItemFactory,
 };
+
+mod file_object;
 
 #[derive(Parser, Clone)]
 #[command(about, version)]
@@ -79,7 +84,14 @@ struct Cli {
     paths: Vec<PathBuf>,
 }
 
+use gtk::gio;
+
+static CURRENT_DIRECTORY: OnceLock<gio::File> = OnceLock::new();
+
 fn main() {
+    CURRENT_DIRECTORY
+        .set(gio::File::for_path("."))
+        .expect("Could not set CURRENT_DIRECTORY");
     let args = Cli::parse();
     set_program_name(Some("ripdrag"));
     let app = Application::builder()
@@ -100,11 +112,16 @@ fn build_ui(app: &Application, args: Cli) {
         );
     }
     // Create a scrollable list
+    let mut list_data = build_list_data(&args);
+    setup_factory(&mut list_data.1, &args);
+
+    let list_view = ListView::new(Some(list_data.0), Some(list_data.1));
+
     let list_box = ListBox::new();
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
         .min_content_width(args.content_width)
-        .child(&list_box)
+        .child(&list_view)
         .build();
 
     // Build the main window
@@ -133,6 +150,67 @@ fn build_ui(app: &Application, args: Cli) {
 
     window.add_controller(event_controller);
     window.set_visible(true);
+}
+
+fn build_list_data(args: &Cli) -> (MultiSelection, SignalListItemFactory) {
+    let file_model = ListStore::new(FileObject::static_type());
+    // setup the file_model
+    if !args.paths.is_empty() && !args.all_compact {
+        let files: Vec<FileObject> = args
+            .paths
+            .iter()
+            .map(|path| FileObject::new(gtk::gio::File::for_path(path)))
+            .collect();
+        file_model.extend_from_slice(&files);
+    }
+
+    // setup factory
+    let factory = SignalListItemFactory::new();
+    (MultiSelection::new(Some(file_model)), factory)
+}
+
+fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
+    factory.connect_setup(|_, list_item| {
+        let label = Label::new(None);
+        list_item
+            .downcast_ref::<ListItem>()
+            .expect("Needs to be ListItem")
+            .set_child(Some(&label));
+    });
+
+    factory.connect_bind(|_, list_item| {
+        let file_object = list_item
+            .downcast_ref::<ListItem>()
+            .expect("Needs to be ListItem")
+            .item()
+            .and_downcast::<FileObject>()
+            .expect("The item has to be an `FileObject`.");
+
+        let label = list_item
+            .downcast_ref::<ListItem>()
+            .expect("Needs to be ListItem")
+            .child()
+            .and_downcast::<Label>()
+            .expect("The child has to be a `Label`.");
+
+        let str = if file_object
+            .file()
+            .has_parent(Some(CURRENT_DIRECTORY.get().unwrap()))
+        {
+            CURRENT_DIRECTORY
+                .get()
+                .unwrap()
+                .relative_path(&file_object.file())
+                .expect("Can't make a relative path")
+                .to_str()
+                .expect("Couldn't read file name")
+                .to_string()
+        } else {
+            file_object.file().parse_name().to_string()
+        };
+
+        label.set_label(&str);
+    });
 }
 
 fn build_source_ui(list_box: ListBox, args: Cli) {
