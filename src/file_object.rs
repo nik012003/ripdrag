@@ -14,20 +14,29 @@ glib::wrapper! {
     pub struct FileObject(ObjectSubclass<imp::FileObject>);
 }
 
-impl FileObject {
-    pub fn new(file: &gio::File) -> Self {
-        let obj = Object::builder().property("file", file);
-        let file_type = file.query_info(
+trait MimeType {
+    fn mime_type(&self) -> GString;
+}
+
+impl MimeType for gio::File {
+    fn mime_type(&self) -> GString {
+        let file_type = self.query_info(
             gio::FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE,
             FileQueryInfoFlags::NONE,
             gio::Cancellable::NONE,
         );
-        let icon_name = gio::content_type_get_generic_icon_name(
-            &file_type
-                .unwrap_or(FileInfo::default())
-                .content_type()
-                .unwrap_or(GString::format(format_args!("text/plain"))),
-        );
+
+        file_type
+            .unwrap_or(FileInfo::default())
+            .content_type()
+            .unwrap_or(GString::format(format_args!("text/plain")))
+    }
+}
+
+impl FileObject {
+    pub fn new(file: &gio::File) -> Self {
+        let obj = Object::builder().property("file", file);
+        let icon_name = gio::content_type_get_generic_icon_name(&file.mime_type());
 
         let image = gtk::Image::builder()
             .icon_name(icon_name.unwrap_or(glib::GString::format(format_args!("text/default"))))
@@ -46,8 +55,25 @@ mod imp {
     pub struct FileObject {
         #[property(get, construct_only)]
         file: RefCell<gio::File>,
-        #[property(get, construct_only)]
+        #[property(get = Self::get_thumbnail,construct_only)]
         thumbnail: RefCell<gtk::Image>,
+    }
+
+    impl FileObject {
+        fn get_thumbnail(&self) -> gtk::Image {
+            let mime_type = self.file.borrow().mime_type();
+
+            if !ARGS.get().unwrap().disable_thumbnails
+                && gio::content_type_is_mime_type(&mime_type, "image/*")
+            {
+                gtk::Image::builder()
+                    .file(self.file.borrow().parse_name())
+                    .pixel_size(ARGS.get().unwrap().icon_size)
+                    .build()
+            } else {
+                self.thumbnail.borrow().clone()
+            }
+        }
     }
 
     impl Default for FileObject {

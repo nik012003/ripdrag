@@ -228,6 +228,7 @@ fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
             .and_downcast::<CenterBox>()
             .expect("The child has to be a `Label`.");
 
+        // show either relative or absolute path
         let str = if file_object
             .file()
             .has_parent(Some(CURRENT_DIRECTORY.get().unwrap()))
@@ -249,8 +250,12 @@ fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .tooltip_text(&str)
             .build();
-        file_row.set_center_widget(Some(&label));
-        file_row.set_start_widget(Some(&file_object.thumbnail()))
+        if ARGS.get().unwrap().icons_only {
+            file_row.set_center_widget(Some(&file_object.thumbnail()))
+        } else {
+            file_row.set_center_widget(Some(&label));
+            file_row.set_start_widget(Some(&file_object.thumbnail()))
+        }
     });
 }
 
