@@ -15,6 +15,12 @@ impl FileObject {
     }
 }
 
+impl Default for FileObject {
+    fn default() -> Self {
+        Self::default()
+    }
+}
+
 mod imp {
     use super::*;
     use std::cell::RefCell;
@@ -25,14 +31,14 @@ mod imp {
         #[property(get, construct_only)]
         file: RefCell<gio::File>,
         #[property(get, set)]
-        thumbnail: RefCell<Option<gtk::Image>>,
+        thumbnail: RefCell<gtk::Image>,
     }
 
     impl Default for FileObject {
         fn default() -> Self {
             Self {
                 file: RefCell::new(gio::File::for_path("/does-not-exist")),
-                thumbnail: RefCell::new(None),
+                thumbnail: RefCell::new(gtk::Image::default()),
             }
         }
     }

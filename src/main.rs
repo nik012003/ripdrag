@@ -1,4 +1,4 @@
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::thread;
@@ -10,8 +10,10 @@ use gtk::gio::ffi::g_file_get_type;
 use url::Url;
 
 use gtk::gdk::{ContentProvider, DragAction};
-use gtk::gio::{ApplicationFlags, File, ListStore};
-use gtk::glib::{self, clone, set_program_name, Bytes, Continue, MainContext, PRIORITY_DEFAULT};
+use gtk::gio::{ApplicationFlags, File, ListModel, ListStore};
+use gtk::glib::{
+    self, clone, set_program_name, Bytes, Continue, MainContext, Priority, PRIORITY_DEFAULT,
+};
 use gtk::{
     prelude::*, Application, ApplicationWindow, Button, CenterBox, DragSource, DropTarget,
     EventControllerKey, Image, Label, ListBox, ListItem, ListItemFactory, ListView, MultiSelection,
@@ -117,7 +119,6 @@ fn build_ui(app: &Application, args: Cli) {
 
     let list_view = ListView::new(Some(list_data.0), Some(list_data.1));
 
-    let list_box = ListBox::new();
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
         .min_content_width(args.content_width)
@@ -133,12 +134,6 @@ fn build_ui(app: &Application, args: Cli) {
         .default_height(args.content_height)
         .build();
 
-    if args.target {
-        build_target_ui(list_box, args);
-    } else {
-        build_source_ui(list_box, args);
-    }
-
     // Kill the app when Escape is pressed
     let event_controller = EventControllerKey::new();
     event_controller.connect_key_pressed(|_, key, _, _| {
@@ -150,6 +145,44 @@ fn build_ui(app: &Application, args: Cli) {
 
     window.add_controller(event_controller);
     window.set_visible(true);
+
+    // lol
+    if args.from_stdin {
+        listen_to_stdin(
+            &list_view
+                .model()
+                .unwrap()
+                .downcast::<MultiSelection>()
+                .unwrap()
+                .model()
+                .unwrap(),
+        );
+    }
+}
+
+fn listen_to_stdin(model: &ListModel) {
+    let (sender, receiver) = MainContext::channel(Priority::default());
+    thread::spawn(move || {
+        let stdin = io::stdin();
+        for path in stdin.lock().lines().flatten() {
+            let file = gio::File::for_path(path);
+            if file.query_exists(gio::Cancellable::NONE) {
+                if let Err(err) = sender.send(file) {
+                    println!("{}", err);
+                }
+            } else {
+                println!("{} does not exist!", file.parse_name());
+                let _ = io::stdout().flush();
+            }
+        }
+    });
+    receiver.attach(
+        None,
+        clone!(@weak model => @default-return Continue(false), move |file| {
+            model.downcast::<ListStore>().unwrap().append(&FileObject::new(file));
+            Continue(true)
+        }),
+    );
 }
 
 fn build_list_data(args: &Cli) -> (MultiSelection, SignalListItemFactory) {
@@ -171,11 +204,11 @@ fn build_list_data(args: &Cli) -> (MultiSelection, SignalListItemFactory) {
 
 fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
     factory.connect_setup(|_, list_item| {
-        let label = Label::new(None);
+        let row = CenterBox::default();
         list_item
             .downcast_ref::<ListItem>()
             .expect("Needs to be ListItem")
-            .set_child(Some(&label));
+            .set_child(Some(&row));
     });
 
     factory.connect_bind(|_, list_item| {
@@ -186,11 +219,11 @@ fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
             .and_downcast::<FileObject>()
             .expect("The item has to be an `FileObject`.");
 
-        let label = list_item
+        let file_row = list_item
             .downcast_ref::<ListItem>()
             .expect("Needs to be ListItem")
             .child()
-            .and_downcast::<Label>()
+            .and_downcast::<CenterBox>()
             .expect("The child has to be a `Label`.");
 
         let str = if file_object
@@ -209,7 +242,8 @@ fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
             file_object.file().parse_name().to_string()
         };
 
-        label.set_label(&str);
+        file_row.set_center_widget(Some(&Label::new(Some(&str))));
+        file_row.set_start_widget(Some(&file_object.thumbnail()))
     });
 }
 
