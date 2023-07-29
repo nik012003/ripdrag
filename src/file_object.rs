@@ -1,23 +1,39 @@
 use glib::Object;
 use glib::Properties;
 use gtk::gio;
+use gtk::gio::FileInfo;
+use gtk::gio::FileQueryInfoFlags;
 use gtk::glib;
+use gtk::glib::GString;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+
+use crate::ARGS;
 
 glib::wrapper! {
     pub struct FileObject(ObjectSubclass<imp::FileObject>);
 }
 
 impl FileObject {
-    pub fn new(file: gio::File) -> Self {
-        Object::builder().property("file", file).build()
-    }
-}
+    pub fn new(file: &gio::File) -> Self {
+        let obj = Object::builder().property("file", file);
+        let file_type = file.query_info(
+            gio::FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE,
+            FileQueryInfoFlags::NONE,
+            gio::Cancellable::NONE,
+        );
+        let icon_name = gio::content_type_get_generic_icon_name(
+            &file_type
+                .unwrap_or(FileInfo::default())
+                .content_type()
+                .unwrap_or(GString::format(format_args!("text/plain"))),
+        );
 
-impl Default for FileObject {
-    fn default() -> Self {
-        Self::default()
+        let image = gtk::Image::builder()
+            .icon_name(icon_name.unwrap_or(glib::GString::format(format_args!("text/default"))))
+            .pixel_size(ARGS.get().unwrap().icon_size)
+            .build();
+        obj.property("thumbnail", image).build()
     }
 }
 
@@ -30,7 +46,7 @@ mod imp {
     pub struct FileObject {
         #[property(get, construct_only)]
         file: RefCell<gio::File>,
-        #[property(get, set)]
+        #[property(get, construct_only)]
         thumbnail: RefCell<gtk::Image>,
     }
 

@@ -22,7 +22,7 @@ use gtk::{
 
 mod file_object;
 
-#[derive(Parser, Clone)]
+#[derive(Parser, Clone, Debug)]
 #[command(about, version)]
 struct Cli {
     /// Be verbose
@@ -89,22 +89,24 @@ struct Cli {
 use gtk::gio;
 
 static CURRENT_DIRECTORY: OnceLock<gio::File> = OnceLock::new();
+static ARGS: OnceLock<Cli> = OnceLock::new();
 
 fn main() {
     CURRENT_DIRECTORY
         .set(gio::File::for_path("."))
         .expect("Could not set CURRENT_DIRECTORY");
     let args = Cli::parse();
+    ARGS.set(args).expect("Could not set ARGS");
     set_program_name(Some("ripdrag"));
     let app = Application::builder()
         .application_id("ga.strin.ripdrag")
         .flags(ApplicationFlags::NON_UNIQUE)
         .build();
-    app.connect_activate(move |app| build_ui(app, args.clone()));
+    app.connect_activate(move |app| build_ui(app, ARGS.get().unwrap()));
     app.run_with_args(&[""]); // we don't want gtk to parse the arguments. cleaner solutions are welcome
 }
 
-fn build_ui(app: &Application, args: Cli) {
+fn build_ui(app: &Application, args: &Cli) {
     // Parse arguments and check if files exist
     for path in &args.paths {
         assert!(
@@ -114,8 +116,8 @@ fn build_ui(app: &Application, args: Cli) {
         );
     }
     // Create a scrollable list
-    let mut list_data = build_list_data(&args);
-    setup_factory(&mut list_data.1, &args);
+    let mut list_data = build_list_data(args);
+    setup_factory(&mut list_data.1, args);
 
     let list_view = ListView::new(Some(list_data.0), Some(list_data.1));
 
@@ -179,7 +181,7 @@ fn listen_to_stdin(model: &ListModel) {
     receiver.attach(
         None,
         clone!(@weak model => @default-return Continue(false), move |file| {
-            model.downcast::<ListStore>().unwrap().append(&FileObject::new(file));
+            model.downcast::<ListStore>().unwrap().append(&FileObject::new(&file));
             Continue(true)
         }),
     );
@@ -192,7 +194,7 @@ fn build_list_data(args: &Cli) -> (MultiSelection, SignalListItemFactory) {
         let files: Vec<FileObject> = args
             .paths
             .iter()
-            .map(|path| FileObject::new(gtk::gio::File::for_path(path)))
+            .map(|path| FileObject::new(&gtk::gio::File::for_path(path)))
             .collect();
         file_model.extend_from_slice(&files);
     }
@@ -242,7 +244,12 @@ fn setup_factory(factory: &mut SignalListItemFactory, args: &Cli) {
             file_object.file().parse_name().to_string()
         };
 
-        file_row.set_center_widget(Some(&Label::new(Some(&str))));
+        let label = Label::builder()
+            .label(&str)
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .tooltip_text(&str)
+            .build();
+        file_row.set_center_widget(Some(&label));
         file_row.set_start_widget(Some(&file_object.thumbnail()))
     });
 }
