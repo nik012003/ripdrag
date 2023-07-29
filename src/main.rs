@@ -132,7 +132,7 @@ fn build_ui(app: &Application, args: Cli) {
     });
 
     window.add_controller(event_controller);
-    window.show();
+    window.set_visible(true);
 }
 
 fn build_source_ui(list_box: ListBox, args: Cli) {
