@@ -1,10 +1,15 @@
 use glib::Object;
 use glib::Properties;
+use glib_macros::clone;
+use gtk::gdk;
+use gtk::gdk_pixbuf;
 use gtk::gio;
 use gtk::gio::FileInfo;
 use gtk::gio::FileQueryInfoFlags;
 use gtk::glib;
 use gtk::glib::GString;
+use gtk::glib::MainContext;
+use gtk::glib::Priority;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 
@@ -42,7 +47,34 @@ impl FileObject {
             .icon_name(icon_name.unwrap_or(glib::GString::format(format_args!("text/default"))))
             .pixel_size(ARGS.get().unwrap().icon_size)
             .build();
-        obj.property("thumbnail", image).build()
+        let obj = obj.property("thumbnail", image).build();
+        let file = file.clone();
+        let (sender, receiver) = MainContext::channel(Priority::default());
+        gio::spawn_blocking(move || {
+            let mime_type = file.mime_type();
+            if !ARGS.get().unwrap().disable_thumbnails
+                && gio::content_type_is_mime_type(&mime_type, "image/*")
+            {
+                let image = gdk::Texture::from_file(&file).ok();
+                sender.send(image).expect("Could not create thumbnail");
+            }
+        });
+        receiver.attach(
+            None,
+            clone!(@weak obj => @default-return
+            glib::Continue(false), move |image| {
+                if let Some(image) = image {
+                    let obj: FileObject = obj;
+                    let thumbnail = obj.thumbnail();
+
+                    thumbnail.set_from_paintable(Some(&image));
+                }
+
+                glib::Continue(false)
+            }),
+        );
+
+        obj
     }
 }
 
@@ -55,7 +87,7 @@ mod imp {
     pub struct FileObject {
         #[property(get, construct_only)]
         file: RefCell<gio::File>,
-        #[property(get = Self::get_thumbnail,construct_only)]
+        #[property(get, construct_only)]
         thumbnail: RefCell<gtk::Image>,
     }
 
