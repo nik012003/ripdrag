@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::collections::HashSet;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -211,14 +212,22 @@ fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource
     drag_source.connect_prepare(clone!(@weak row, @weak selection, => @default-return  Some(Option::unwrap(ContentProvider::NONE).to_owned()), move |me, _, _| {
         me.set_state(gtk::EventSequenceState::Claimed);
         let selected = selection.selection();
-        let mut vec : Vec<gio::File> =        Vec::with_capacity(selected.size() as usize);
+        let mut set : HashSet<GString> = HashSet::with_capacity(selected.size() as usize);
         for index in 0..selected.size() {
-            vec.push(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file());
+            set.insert(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().uri());
         }
-        Some(ContentProvider::for_bytes(
-            "text/uri-list",
-            &glib::Bytes::from_owned(vec.iter().fold("".to_string(), |accum, file| [accum, file.uri().to_string()].join("\n")))))
-
+        
+        let row_file = get_file(&row).uri();
+        let row_file_uri = row_file.to_string();
+        if set.insert(row_file)
+        {
+            selection.unselect_all();
+            Some(ContentProvider::for_bytes("text/uri-list", &glib::Bytes::from_owned(row_file_uri)))
+        } else {
+            Some(ContentProvider::for_bytes(
+                "text/uri-list",
+                &glib::Bytes::from_owned(set.iter().fold("".to_string(), |accum, file| [accum, file.to_string()].join("\n")))))
+        }
     }));
 
     drag_source
