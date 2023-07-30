@@ -24,6 +24,8 @@ use gtk::{
 };
 
 mod file_object;
+mod list_view;
+use list_view::get_list_view;
 
 #[derive(Parser, Clone, Debug)]
 #[command(about, version)]
@@ -119,11 +121,7 @@ fn build_ui(app: &Application, args: &Cli) {
         );
     }
     // Create a scrollable list
-    let mut list_data = build_list_data(args);
-    setup_factory(&mut list_data.1, &list_data.0);
-
-    let list_view = ListView::new(Some(list_data.0), Some(list_data.1));
-
+    let list_view = get_list_view();
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
         .min_content_width(args.content_width)
@@ -189,137 +187,6 @@ fn listen_to_stdin(model: &ListModel) {
         }),
     );
 }
-
-fn build_list_data(args: &Cli) -> (MultiSelection, SignalListItemFactory) {
-    let file_model = ListStore::new(FileObject::static_type());
-    // setup the file_model
-    if !args.paths.is_empty() && !args.all_compact {
-        let files: Vec<FileObject> = args
-            .paths
-            .iter()
-            .map(|path| FileObject::new(&gtk::gio::File::for_path(path)))
-            .collect();
-        file_model.extend_from_slice(&files);
-    }
-
-    // setup factory
-    let factory = SignalListItemFactory::new();
-    (MultiSelection::new(Some(file_model)), factory)
-}
-
-fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource {
-    let drag_source = DragSource::new();
-    drag_source.connect_prepare(clone!(@weak row, @weak selection, => @default-return  Some(Option::unwrap(ContentProvider::NONE).to_owned()), move |me, _, _| {
-        me.set_state(gtk::EventSequenceState::Claimed);
-        let selected = selection.selection();
-        let mut set : HashSet<GString> = HashSet::with_capacity(selected.size() as usize);
-        for index in 0..selected.size() {
-            set.insert(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().uri());
-        }
-        
-        let row_file = get_file(&row).uri();
-        let row_file_uri = row_file.to_string();
-        if set.insert(row_file)
-        {
-            selection.unselect_all();
-            Some(ContentProvider::for_bytes("text/uri-list", &glib::Bytes::from_owned(row_file_uri)))
-        } else {
-            Some(ContentProvider::for_bytes(
-                "text/uri-list",
-                &glib::Bytes::from_owned(set.iter().fold("".to_string(), |accum, file| [accum, file.to_string()].join("\n")))))
-        }
-    }));
-
-    drag_source
-}
-
-fn create_gesture_click(row: &CenterBox) -> gtk::GestureClick {
-    let click = gtk::GestureClick::new();
-    click.connect_released(clone!(@weak row => move |me, _, _, _|{
-        if me.current_event_state().contains(gdk::ModifierType::CONTROL_MASK) {
-            return;
-        }
-        let file = get_file(&row);
-        if let Some(file) =  file.path() {
-           let _ = opener::open(file).map_err(|err| {
-                eprint!("{}", err);
-                err
-           });
-        }
-    }));
-
-    click
-}
-
-fn get_file(row: &CenterBox) -> gio::File {
-    let file_widget = if ARGS.get().unwrap().icons_only {
-        row.start_widget().unwrap()
-    } else {
-        row.center_widget().unwrap()
-    };
-    gio::File::for_path(file_widget.downcast::<Label>().unwrap().text())
-}
-
-fn setup_factory(factory: &mut SignalListItemFactory, list: &MultiSelection) {
-    factory.connect_setup(clone!(@weak list => move |_, list_item| {
-        let row = CenterBox::default();
-        let drag_source = create_drag_source(&row, &list);
-        let gesture_click = create_gesture_click(&row);
-        row.add_controller(gesture_click);
-        row.add_controller(drag_source);
-        list_item
-            .downcast_ref::<ListItem>()
-            .expect("Needs to be ListItem")
-            .set_child(Some(&row));
-    }));
-
-    factory.connect_bind(|_, list_item| {
-        let file_object = list_item
-            .downcast_ref::<ListItem>()
-            .expect("Needs to be ListItem")
-            .item()
-            .and_downcast::<FileObject>()
-            .expect("The item has to be an `FileObject`.");
-
-        let file_row = list_item
-            .downcast_ref::<ListItem>()
-            .expect("Needs to be ListItem")
-            .child()
-            .and_downcast::<CenterBox>()
-            .expect("The child has to be a `Label`.");
-
-        // show either relative or absolute path
-        let str = if file_object
-            .file()
-            .has_parent(Some(CURRENT_DIRECTORY.get().unwrap()))
-        {
-            CURRENT_DIRECTORY
-                .get()
-                .unwrap()
-                .relative_path(&file_object.file())
-                .expect("Can't make a relative path")
-                .to_str()
-                .expect("Couldn't read file name")
-                .to_string()
-        } else {
-            file_object.file().parse_name().to_string()
-        };
-
-        let label = Label::builder()
-            .label(&str)
-            .ellipsize(gtk::pango::EllipsizeMode::End)
-            .tooltip_text(&str);
-
-        if ARGS.get().unwrap().icons_only {
-            file_row.set_start_widget(Some(&label.visible(false).build()));
-            file_row.set_center_widget(Some(&file_object.thumbnail()))
-        } else {
-            file_row.set_center_widget(Some(&label.build()));
-            file_row.set_start_widget(Some(&file_object.thumbnail()))
-        }
-    });
-}
-
 fn build_source_ui(list_box: ListBox, args: Cli) {
     // Populate the list with the buttons, if there are any
     if !args.paths.is_empty() {
