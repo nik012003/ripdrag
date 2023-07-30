@@ -55,8 +55,30 @@ impl FileObject {
             if !ARGS.get().unwrap().disable_thumbnails
                 && gio::content_type_is_mime_type(&mime_type, "image/*")
             {
-                let image = gdk::Texture::from_file(&file).ok();
-                sender.send(image).expect("Could not create thumbnail");
+                let image = gdk_pixbuf::Pixbuf::from_file_at_scale(
+                    file.path().unwrap(),
+                    ARGS.get().unwrap().icon_size,
+                    -1,
+                    true,
+                )
+                .ok();
+                if let Some(image) = image {
+                    sender
+                        .send(Some((
+                            image.read_pixel_bytes(),
+                            image.colorspace(),
+                            image.has_alpha(),
+                            image.bits_per_sample(),
+                            image.width(),
+                            image.height(),
+                            image.rowstride(),
+                        )))
+                        .expect("Could not create thumbnail");
+                } else {
+                    sender.send(None).expect("Could not send None");
+                }
+            } else {
+                sender.send(None).expect("Could not send None");
             }
         });
         receiver.attach(
@@ -66,10 +88,11 @@ impl FileObject {
                 if let Some(image) = image {
                     let obj: FileObject = obj;
                     let thumbnail = obj.thumbnail();
-
-                    thumbnail.set_from_paintable(Some(&image));
+                    // omg
+                    let image = gdk_pixbuf::Pixbuf::from_bytes(&image.0, image.1, image.2, image.3, image.4, image.5, image.6);
+                    thumbnail.set_from_paintable(Some(&gdk::Texture::for_pixbuf(&image)));
                 }
-
+                
                 glib::Continue(false)
             }),
         );
