@@ -25,7 +25,7 @@ use gtk::{
 
 mod file_object;
 mod list_view;
-use list_view::get_list_view;
+use list_view::generate_list_view;
 
 #[derive(Parser, Clone, Debug)]
 #[command(about, version)]
@@ -121,7 +121,7 @@ fn build_ui(app: &Application, args: &Cli) {
         );
     }
     // Create a scrollable list
-    let list_view = get_list_view();
+    let list_view = generate_list_view();
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
         .min_content_width(args.content_width)

@@ -13,7 +13,7 @@ use url::Url;
 use crate::{file_object::FileObject, ARGS, CURRENT_DIRECTORY};
 use gtk::gdk::*;
 
-pub fn get_list_view() -> ListView {
+pub fn generate_list_view() -> ListView {
     let mut list_data = build_list_data();
     setup_factory(&mut list_data.1, &list_data.0);
     ListView::new(Some(list_data.0), Some(list_data.1))
