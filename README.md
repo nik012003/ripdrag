@@ -24,7 +24,7 @@ sudo apt install cargo libgtk-4-dev build-essential
 ```
 #### Fedora\CentOS\RHEL 
 ```
-sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cargo-devel cairo-gobject-devel cairo-devel python2-cairo-devel gtk4-devel
+sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cairo-gobject-devel cairo-devel python2-cairo-devel gtk4-devel
 ```
 #### Arch Linux
 ripdrag is on the AUR: [ripdrag-git](https://aur.archlinux.org/packages/ripdrag-git)
