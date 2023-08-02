@@ -114,23 +114,6 @@ mod imp {
         thumbnail: RefCell<gtk::Image>,
     }
 
-    impl FileObject {
-        fn get_thumbnail(&self) -> gtk::Image {
-            let mime_type = self.file.borrow().mime_type();
-
-            if !ARGS.get().unwrap().disable_thumbnails
-                && gio::content_type_is_mime_type(&mime_type, "image/*")
-            {
-                gtk::Image::builder()
-                    .file(self.file.borrow().parse_name())
-                    .pixel_size(ARGS.get().unwrap().icon_size)
-                    .build()
-            } else {
-                self.thumbnail.borrow().clone()
-            }
-        }
-    }
-
     impl Default for FileObject {
         fn default() -> Self {
             Self {
