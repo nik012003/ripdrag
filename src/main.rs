@@ -6,6 +6,7 @@ use std::sync::OnceLock;
 use std::thread;
 
 use clap::Parser;
+use compact_view::generate_compact_view;
 use file_object::FileObject;
 use gtk::gdk::ffi::gdk_content_provider_new_typed;
 use gtk::gio::ffi::g_file_get_type;
@@ -15,7 +16,7 @@ use gtk::gdk::{self, ContentProvider, DragAction};
 use gtk::gio::{ApplicationFlags, File, ListModel, ListStore};
 use gtk::glib::{
     self, clone, set_program_name, Bytes, Continue, GString, MainContext, Priority,
-    PRIORITY_DEFAULT,
+    PRIORITY_DEFAULT, closure_local, closure,
 };
 use gtk::{
     prelude::*, Application, ApplicationWindow, Button, CenterBox, DragSource, DropTarget,
@@ -26,6 +27,8 @@ use gtk::{
 mod file_object;
 mod list_view;
 use list_view::generate_list_view;
+mod compact_view;
+mod util;
 
 #[derive(Parser, Clone, Debug)]
 #[command(about, version)]
@@ -121,11 +124,16 @@ fn build_ui(app: &Application, args: &Cli) {
         );
     }
     // Create a scrollable list
-    let list_view = generate_list_view();
+    let list_data = if ARGS.get().unwrap().all_compact {
+        generate_compact_view()
+    } else {
+        generate_list_view()
+    };
+
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
         .min_content_width(args.content_width)
-        .child(&list_view)
+        .child(&list_data.widget)
         .build();
 
     // Build the main window
@@ -149,21 +157,12 @@ fn build_ui(app: &Application, args: &Cli) {
     window.add_controller(event_controller);
     window.set_visible(true);
 
-    // lol
     if args.from_stdin {
-        listen_to_stdin(
-            &list_view
-                .model()
-                .unwrap()
-                .downcast::<MultiSelection>()
-                .unwrap()
-                .model()
-                .unwrap(),
-        );
+        listen_to_stdin(&list_data.list_model);
     }
 }
 
-fn listen_to_stdin(model: &ListModel) {
+fn listen_to_stdin(model: &ListStore) {
     let (sender, receiver) = MainContext::channel(Priority::default());
     thread::spawn(move || {
         let stdin = io::stdin();
@@ -175,16 +174,17 @@ fn listen_to_stdin(model: &ListModel) {
                 }
             } else {
                 println!("{} does not exist!", file.parse_name());
-                let _ = io::stdout().flush();
             }
+           let _ = io::stdout().flush(); 
         }
     });
+    // weak references don't work
     receiver.attach(
         None,
-        clone!(@weak model => @default-return Continue(false), move |file| {
-            model.downcast::<ListStore>().unwrap().append(&FileObject::new(&file));
+           clone!(@strong model => move |file| {
+            model.append(&FileObject::new(&file));
             Continue(true)
-        }),
+        })
     );
 }
 fn build_source_ui(list_box: ListBox, args: Cli) {

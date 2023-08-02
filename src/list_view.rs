@@ -1,51 +1,53 @@
 use std::{collections::HashSet, path::PathBuf};
 
-
-use glib::*;
+use crate::{
+    file_object::FileObject,
+    util::{drag_source_all, generate_content_provider, setup_file_model, ListWidget},
+    ARGS, CURRENT_DIRECTORY,
+};
 use glib_macros::clone;
+use gtk::gdk::*;
 use gtk::{
     gdk,
     gio::{self, ListStore},
     prelude::*,
     CenterBox, DragSource, Label, ListItem, ListView, MultiSelection, SignalListItemFactory,
+    Widget,
 };
-use url::Url;
-use crate::{file_object::FileObject, ARGS, CURRENT_DIRECTORY};
-use gtk::gdk::*;
 
-pub fn generate_list_view() -> ListView {
+pub fn generate_list_view() -> ListWidget {
     let mut list_data = build_list_data();
     setup_factory(&mut list_data.1, &list_data.0);
-    ListView::new(Some(list_data.0), Some(list_data.1))
+    let list_view = ListView::new(Some(list_data.0), Some(list_data.1));
+
+    ListWidget {
+        // wtf??
+        list_model: list_view
+            .model()
+            .unwrap()
+            .downcast::<MultiSelection>()
+            .unwrap()
+            .model()
+            .unwrap()
+            .downcast::<ListStore>()
+            .unwrap(),
+        widget: list_view.upcast::<Widget>(),
+    }
 }
 
-
 fn build_list_data() -> (MultiSelection, SignalListItemFactory) {
-    let file_model = ListStore::new(FileObject::static_type());
-    // setup the file_model
-    if !ARGS.get().unwrap().paths.is_empty() && !ARGS.get().unwrap().all_compact {
-        let files: Vec<FileObject> = ARGS.get().unwrap()
-            .paths
-            .iter()
-            .map(|path| FileObject::new(&gtk::gio::File::for_path(path)))
-            .collect();
-        file_model.extend_from_slice(&files);
-    }
-
     // setup factory
     let factory = SignalListItemFactory::new();
-    (MultiSelection::new(Some(file_model)), factory)
+    (MultiSelection::new(Some(setup_file_model())), factory)
 }
 
 fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource {
     let drag_source = DragSource::new();
     if ARGS.get().unwrap().all {
-        drag_source.connect_prepare(clone!(@weak selection => @default-return None, move |me, _, _| {
-            me.set_state(gtk::EventSequenceState::Claimed);
-            let model = selection.model().unwrap().downcast::<ListStore>().unwrap();
-            let files: Vec<PathBuf> = model.into_iter().flatten().map(|file_object| {file_object.downcast::<FileObject>().unwrap().file().path().unwrap()}).collect();
-            Some(generate_content_provider(&files))
-        }));
+        drag_source_all(
+            &drag_source,
+            &selection.model().unwrap().downcast::<ListStore>().unwrap(),
+        );
     } else {
         drag_source.connect_prepare(clone!(@weak row, @weak selection, => @default-return None, move |me, _, _| {
             me.set_state(gtk::EventSequenceState::Claimed);
@@ -54,33 +56,17 @@ fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource
             for index in 0..selected.size() {
                 set.insert(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().path().unwrap());
             }
-        
             let row_file = get_file(&row).path().unwrap();
             if !set.contains(&row_file)
             {
                 selection.unselect_all();
-                Some(generate_content_provider(&[row_file]))
+                generate_content_provider(&[row_file])
             } else {
-                Some(
-                    generate_content_provider(&set))
+                generate_content_provider(&set)
             }
         }));
     }
     drag_source
-}
-
-fn generate_content_provider<'a>(paths: impl IntoIterator<Item = &'a PathBuf>) -> ContentProvider {
-ContentProvider::for_bytes("text/uri-list",     &gtk::glib::Bytes::from_owned(
-        paths
-            .into_iter()
-            .map(|path| -> String {
-                Url::from_file_path(path.canonicalize().unwrap())
-                    .unwrap()
-                    .to_string()
-            })
-            .reduce(|accum, item| [accum, item].join("\n"))
-            .unwrap(),
-    ))
 }
 
 fn create_gesture_click(row: &CenterBox) -> gtk::GestureClick {
@@ -117,6 +103,7 @@ fn setup_factory(factory: &mut SignalListItemFactory, list: &MultiSelection) {
         let gesture_click = create_gesture_click(&row);
         row.add_controller(gesture_click);
         row.add_controller(drag_source);
+
         list_item
             .downcast_ref::<ListItem>()
             .expect("Needs to be ListItem")

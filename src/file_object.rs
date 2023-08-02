@@ -3,6 +3,7 @@ use glib::Properties;
 use glib_macros::clone;
 use gtk::gdk;
 use gtk::gdk_pixbuf;
+use gtk::gdk_pixbuf::Pixbuf;
 use gtk::gio;
 use gtk::gio::FileInfo;
 use gtk::gio::FileQueryInfoFlags;
@@ -42,15 +43,16 @@ impl FileObject {
     pub fn new(file: &gio::File) -> Self {
         let obj = Object::builder().property("file", file);
         let icon_name = gio::content_type_get_generic_icon_name(&file.mime_type());
-
         let image = gtk::Image::builder()
             .icon_name(icon_name.unwrap_or(glib::GString::format(format_args!("text/default"))))
             .pixel_size(ARGS.get().unwrap().icon_size)
             .build();
         let obj = obj.property("thumbnail", image).build();
         let file = file.clone();
+
         let (sender, receiver) = MainContext::channel(Priority::default());
         gio::spawn_blocking(move || {
+            let print_err = |err| eprintln!("{}", err);
             let mime_type = file.mime_type();
             if !ARGS.get().unwrap().disable_thumbnails
                 && gio::content_type_is_mime_type(&mime_type, "image/*")
@@ -60,10 +62,9 @@ impl FileObject {
                     ARGS.get().unwrap().icon_size,
                     -1,
                     true,
-                )
-                .ok();
-                if let Some(image) = image {
-                    sender
+                );
+                if let Ok(image) = image {
+                    let _ = sender
                         .send(Some((
                             image.read_pixel_bytes(),
                             image.colorspace(),
@@ -73,12 +74,13 @@ impl FileObject {
                             image.height(),
                             image.rowstride(),
                         )))
-                        .expect("Could not create thumbnail");
+                        .map_err(print_err);
                 } else {
-                    sender.send(None).expect("Could not send None");
+                    eprintln!("{}", image.unwrap_err());
+                    let _ = sender.send(None).map_err(print_err);
                 }
             } else {
-                sender.send(None).expect("Could not send None");
+                let _ = sender.send(None).map_err(print_err);
             }
         });
         receiver.attach(
@@ -88,11 +90,10 @@ impl FileObject {
                 if let Some(image) = image {
                     let obj: FileObject = obj;
                     let thumbnail = obj.thumbnail();
-                    // omg
-                    let image = gdk_pixbuf::Pixbuf::from_bytes(&image.0, image.1, image.2, image.3, image.4, image.5, image.6);
+                    // (apply gdk_pixbuf::Pixbuf::from_bytes image)
+                    let image = Pixbuf::from_bytes(&image.0, image.1, image.2, image.3, image.4, image.5, image.6);
                     thumbnail.set_from_paintable(Some(&gdk::Texture::for_pixbuf(&image)));
                 }
-                
                 glib::Continue(false)
             }),
         );
