@@ -181,7 +181,7 @@ fn listen_to_stdin(model: &ListStore) {
     // weak references don't work
     receiver.attach(
         None,
-           clone!(@strong model => move |file| {
+           clone!(@weak model => @default-return Continue(false), move |file| {
             model.append(&FileObject::new(&file));
             Continue(true)
         })
