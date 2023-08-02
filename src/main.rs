@@ -15,8 +15,8 @@ use url::Url;
 use gtk::gdk::{self, ContentProvider, DragAction};
 use gtk::gio::{ApplicationFlags, File, ListModel, ListStore};
 use gtk::glib::{
-    self, clone, set_program_name, Bytes, Continue, GString, MainContext, Priority,
-    PRIORITY_DEFAULT, closure_local, closure,
+    self, clone, closure, closure_local, set_program_name, Bytes, Continue, GString, MainContext,
+    Priority, PRIORITY_DEFAULT,
 };
 use gtk::{
     prelude::*, Application, ApplicationWindow, Button, CenterBox, DragSource, DropTarget,
@@ -132,8 +132,14 @@ fn build_ui(app: &Application, args: &Cli) {
 
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
-        .min_content_width(args.content_width)
+        .vexpand(true)
+        .hexpand(true)
         .child(&list_data.widget)
+        .build();
+
+    let titlebar = gtk::HeaderBar::builder()
+        .show_title_buttons(false)
+        .visible(false)
         .build();
 
     // Build the main window
@@ -143,19 +149,21 @@ fn build_ui(app: &Application, args: &Cli) {
         .application(app)
         .child(&scrolled_window)
         .default_height(args.content_height)
+        .default_width(args.content_width)
+        .titlebar(&titlebar)
         .build();
 
     // Kill the app when Escape is pressed
     let event_controller = EventControllerKey::new();
     event_controller.connect_key_pressed(|_, key, _, _| {
-        if key == gtk::gdk::Key::Escape {
+        if [gtk::gdk::Key::Escape, gtk::gdk::Key::q, gtk::gdk::Key::Q].contains(&key) {
             std::process::exit(0)
         }
         glib::signal::Inhibit(false)
     });
 
     window.add_controller(event_controller);
-    window.set_visible(true);
+    window.present();
 
     if args.from_stdin {
         listen_to_stdin(&list_data.list_model);
@@ -175,16 +183,16 @@ fn listen_to_stdin(model: &ListStore) {
             } else {
                 println!("{} does not exist!", file.parse_name());
             }
-           let _ = io::stdout().flush(); 
+            let _ = io::stdout().flush();
         }
     });
     // weak references don't work
     receiver.attach(
         None,
-           clone!(@weak model => @default-return Continue(false), move |file| {
+        clone!(@weak model => @default-return Continue(false), move |file| {
             model.append(&FileObject::new(&file));
             Continue(true)
-        })
+        }),
     );
 }
 fn build_source_ui(list_box: ListBox, args: Cli) {
