@@ -1,29 +1,19 @@
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use std::thread;
 
 use clap::Parser;
 use compact_view::generate_compact_view;
 use file_object::FileObject;
-use gtk::gdk::ffi::gdk_content_provider_new_typed;
-use gtk::gdk::{ContentProvider, DragAction};
-use gtk::gio::ffi::g_file_get_type;
-use gtk::gio::{ApplicationFlags, File, ListStore};
-use gtk::glib::{
-    self, clone, set_program_name, Bytes, Continue, MainContext, Priority, PRIORITY_DEFAULT,
-};
+use gtk::gio::{ApplicationFlags, ListStore};
+use gtk::glib::{self, clone, set_program_name, Continue, MainContext, Priority};
 use gtk::prelude::*;
-use gtk::{
-    Application, ApplicationWindow, Button, CenterBox, DragSource, DropTarget, EventControllerKey,
-    Image, ListBox, Orientation, PolicyType, ScrolledWindow,
-};
-use url::Url;
+use gtk::{gio, Application, ApplicationWindow, EventControllerKey, PolicyType, ScrolledWindow};
+use list_view::generate_list_view;
 
+mod compact_view;
 mod file_object;
 mod list_view;
-use list_view::generate_list_view;
-mod compact_view;
 mod util;
 
 #[derive(Parser, Clone, Debug)]
@@ -90,8 +80,7 @@ struct Cli {
     paths: Vec<PathBuf>,
 }
 
-use gtk::gio;
-
+// switch to Lazy Cell when it is stable.
 static CURRENT_DIRECTORY: OnceLock<gio::File> = OnceLock::new();
 static ARGS: OnceLock<Cli> = OnceLock::new();
 
@@ -106,13 +95,13 @@ fn main() {
         .application_id("ga.strin.ripdrag")
         .flags(ApplicationFlags::NON_UNIQUE)
         .build();
-    app.connect_activate(move |app| build_ui(app, ARGS.get().unwrap()));
+    app.connect_activate(build_ui);
     app.run_with_args(&[""]); // we don't want gtk to parse the arguments. cleaner solutions are welcome
 }
 
-fn build_ui(app: &Application, args: &Cli) {
+fn build_ui(app: &Application) {
     // Parse arguments and check if files exist
-    for path in &args.paths {
+    for path in &ARGS.get().unwrap().paths {
         assert!(
             path.exists(),
             "{0} : no such file or directory",
@@ -141,11 +130,11 @@ fn build_ui(app: &Application, args: &Cli) {
     // Build the main window
     let window = ApplicationWindow::builder()
         .title("ripdrag")
-        .resizable(args.resizable)
+        .resizable(ARGS.get().unwrap().resizable)
         .application(app)
         .child(&scrolled_window)
-        .default_height(args.content_height)
-        .default_width(args.content_width)
+        .default_height(ARGS.get().unwrap().content_height)
+        .default_width(ARGS.get().unwrap().content_width)
         .titlebar(&titlebar)
         .build();
 
@@ -161,14 +150,14 @@ fn build_ui(app: &Application, args: &Cli) {
     window.add_controller(event_controller);
     window.present();
 
-    if args.from_stdin {
+    if ARGS.get().unwrap().from_stdin {
         listen_to_stdin(&list_data.list_model);
     }
 }
 
 fn listen_to_stdin(model: &ListStore) {
     let (sender, receiver) = MainContext::channel(Priority::default());
-    thread::spawn(move || {
+    gio::spawn_blocking(move || {
         let stdin = io::stdin();
         for path in stdin.lock().lines().flatten() {
             let file = gio::File::for_path(path);
@@ -189,250 +178,5 @@ fn listen_to_stdin(model: &ListStore) {
             model.append(&FileObject::new(&file));
             Continue(true)
         }),
-    );
-}
-fn build_source_ui(list_box: ListBox, args: Cli) {
-    // Populate the list with the buttons, if there are any
-    if !args.paths.is_empty() {
-        if args.all_compact {
-            list_box.append(&generate_compact(args.paths.clone(), args.and_exit));
-        } else {
-            for button in generate_buttons_from_paths(
-                args.paths.clone(),
-                args.and_exit,
-                args.icons_only,
-                args.disable_thumbnails,
-                args.icon_size,
-                args.all,
-            ) {
-                list_box.append(&button);
-            }
-        }
-    }
-
-    // Read from stdin and populate the list
-    if args.from_stdin {
-        let mut paths: Vec<PathBuf> = args.paths.clone();
-        let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
-        thread::spawn(move || {
-            let stdin = io::stdin();
-            let lines = stdin.lock().lines();
-
-            for line in lines {
-                let path = PathBuf::from(line.unwrap());
-                if path.exists() {
-                    println!("Adding: {}", path.display());
-                    sender.send(path).expect("Error");
-                } else if args.verbose {
-                    println!("{} : no such file or directory", path.display())
-                }
-            }
-        });
-        receiver.attach(
-                None,
-                clone!(@weak list_box => @default-return Continue(false),
-                            move |path| {
-                                if args.all_compact{
-                                    paths.push(path);
-                                    if let Some(child) = list_box.first_child() { list_box.remove(&child) }
-                                    list_box.append(&generate_compact(paths.clone(),args.and_exit));
-                                } else {
-                                    let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all);
-                                    list_box.append(&button[0]);
-                                }
-                                Continue(true)
-                            }
-                )
-            );
-    }
-}
-
-fn build_target_ui(list_box: ListBox, args: Cli) {
-    // Generate the Drop Target and button
-    let button = Button::builder().label("Drop your files here").build();
-
-    let drop_target = DropTarget::new(File::static_type(), DragAction::COPY);
-
-    let (sender, receiver) = MainContext::channel(PRIORITY_DEFAULT);
-
-    drop_target.connect_drop(move |_, value, _, _| {
-        if let Ok(file) = value.get::<File>() {
-            if let Some(path) = file.path() {
-                println!("{}", path.canonicalize().unwrap().to_string_lossy());
-                if args.keep {
-                    sender
-                        .send(path)
-                        .expect("Error while sending paths to the receiver");
-                }
-                return true;
-            }
-        }
-        false
-    });
-
-    // get the uri_list from the drop and populate the list of files (--keep)
-    let mut paths: Vec<PathBuf> = Vec::new();
-    receiver.attach(
-        None,
-        clone!(@weak list_box => @default-return Continue(false),
-                move |path| {
-                    let mut new_paths :Vec<PathBuf> = Vec::new();
-                    new_paths.push(path);
-                    if args.all_compact{
-                        // Hacky solution, check if we already created buttons
-                        if let Some(child) = list_box.last_child(){
-                            list_box.remove(&child);
-                        }
-                        paths.append(&mut new_paths);
-                        list_box.append(&generate_compact(paths.clone(),args.and_exit));
-                    } else {
-                        // This solution is fast, but it's gonna cause problems when --all is used in combinatio with --target
-                        for button in &generate_buttons_from_paths(new_paths, args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
-                            list_box.append(button);
-                        };
-                    }
-                    Continue(true)
-                }
-        )
-    );
-    button.add_controller(drop_target);
-    list_box.append(&button);
-}
-
-fn generate_buttons_from_paths(
-    paths: Vec<PathBuf>,
-    and_exit: bool,
-    icons_only: bool,
-    disable_thumbnails: bool,
-    icon_size: i32,
-    all: bool,
-) -> Vec<Button> {
-    let mut button_vec = Vec::new();
-    let uri_list = generate_uri_list(&paths);
-
-    //TODO: make this loop multithreaded
-    for path in paths.into_iter() {
-        // The CenterBox(button_box) contains the image and the optional label
-        // The Button contains the CenterBox and can be dragged
-        let button_box = CenterBox::builder()
-            .orientation(Orientation::Horizontal)
-            .build();
-
-        if let Some(image) = get_image_from_path(&path, icon_size, disable_thumbnails) {
-            match icons_only {
-                true => button_box.set_center_widget(Some(&image)),
-                false => button_box.set_start_widget(Some(&image)),
-            }
-        }
-
-        if !icons_only {
-            button_box.set_center_widget(Some(
-                &gtk::Label::builder()
-                    .label(path.display().to_string().as_str())
-                    .build(),
-            ));
-        }
-
-        let button = Button::builder().child(&button_box).build();
-        let drag_source = DragSource::new();
-
-        if all {
-            let list = uri_list.clone();
-            drag_source.connect_prepare(move |_, _, _| {
-                Some(ContentProvider::for_bytes("text/uri-list", &list))
-            });
-        } else {
-            let p = path.clone();
-            drag_source
-                .connect_prepare(move |_, _, _| Some(generate_content_provider_from_path(&p)));
-        }
-
-        if and_exit {
-            drag_source.connect_drag_end(|_, _, _| std::process::exit(0));
-        }
-
-        // Open the path with the default app
-        button.connect_clicked(move |_| {
-            opener::open(&path).unwrap();
-        });
-
-        button.add_controller(drag_source);
-        button_vec.push(button);
-    }
-    button_vec
-}
-
-fn generate_compact(paths: Vec<PathBuf>, and_exit: bool) -> Button {
-    // Here we want to generate a single draggable button, containg all the files
-    let button = Button::builder()
-        .label(format!("{} elements", paths.len()))
-        .build();
-    let drag_source = DragSource::new();
-
-    drag_source.connect_prepare(move |_, _, _| {
-        Some(ContentProvider::for_bytes(
-            "text/uri-list",
-            &generate_uri_list(&paths),
-        ))
-    });
-
-    if and_exit {
-        drag_source.connect_drag_end(|_, _, _| std::process::exit(0));
-    }
-    button.add_controller(drag_source);
-    button
-}
-
-fn get_image_from_path(path: &PathBuf, icon_size: i32, disable_thumbnails: bool) -> Option<Image> {
-    let mime_type = match path.metadata().unwrap().is_dir() {
-        true => "inode/directory",
-        false => match infer::get_from_path(path) {
-            Ok(option) => match option {
-                Some(infer_type) => infer_type.mime_type(),
-                None => "text/plain",
-            },
-            Err(_) => "text/plain",
-        },
-    };
-    if mime_type.contains("image") & !disable_thumbnails {
-        return Some(
-            Image::builder()
-                .file(path.as_os_str().to_str().unwrap())
-                .pixel_size(icon_size)
-                .build(),
-        );
-    }
-    gtk::gio::content_type_get_generic_icon_name(mime_type).map(|icon_name| {
-        Image::builder()
-            .icon_name(icon_name)
-            .pixel_size(icon_size)
-            .build()
-    })
-}
-
-fn generate_content_provider_from_path(path: &PathBuf) -> ContentProvider {
-    unsafe {
-        let gfile = File::for_path(path);
-        glib::translate::from_glib_full(gdk_content_provider_new_typed(g_file_get_type(), gfile))
-    }
-}
-
-fn generate_content_provider_from_file(file: &gio::File) -> ContentProvider {
-    unsafe {
-        glib::translate::from_glib_full(gdk_content_provider_new_typed(g_file_get_type(), file))
-    }
-}
-
-fn generate_uri_list(paths: &[PathBuf]) -> Bytes {
-    return gtk::glib::Bytes::from_owned(
-        paths
-            .iter()
-            .map(|path| -> String {
-                Url::from_file_path(path.canonicalize().unwrap())
-                    .unwrap()
-                    .to_string()
-            })
-            .reduce(|accum, item| [accum, item].join("\n"))
-            .unwrap(),
     );
 }
