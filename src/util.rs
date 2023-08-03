@@ -58,16 +58,24 @@ pub fn drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
 }
 
 pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
-    let drop_target = DropTarget::new(gio::File::static_type(), gdk::DragAction::COPY);
+    let drop_target = gtk::DropTarget::builder()
+        .name("file-drop-target")
+        .actions(gdk::DragAction::COPY)
+        .formats(&gdk::ContentFormats::for_type(gdk::FileList::static_type()))
+        .build();
+
     drop_target.connect_drop(
         clone!(@weak model => @default-return false, move |_, value, _, _|
             {
-                if let Ok(file) = value.get::<gio::File>() {
-                    let file = FileObject::new(&file);
-                    if ARGS.get().unwrap().keep {
-                        model.append(&file);
+                if let Ok(files) = value.get::<gdk::FileList>() {
+                    let files = files.files();
+                    if files.is_empty() {
+                        return false;
                     }
-                    println!("{}", file.file().parse_name());
+                    let vec: Vec<FileObject> = files.iter().map(|item| {println!("{}", item.parse_name()); FileObject::new(item)}).collect();
+                    if ARGS.get().unwrap().keep {
+                        model.extend_from_slice(&vec);
+                    }
                     true
                 } else {
                     false
