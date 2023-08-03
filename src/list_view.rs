@@ -18,8 +18,8 @@ use crate::util::{
 use crate::{ARGS, CURRENT_DIRECTORY};
 
 pub fn generate_list_view() -> ListWidget {
-    let mut list_data = build_list_data();
-    setup_factory(&mut list_data.1, &list_data.0);
+    let list_data = build_list_data();
+    setup_factory(&list_data.1, &list_data.0);
     let list_view = ListView::new(Some(list_data.0), Some(list_data.1));
 
     // lol
@@ -102,7 +102,7 @@ fn get_file(row: &CenterBox) -> gio::File {
     gio::File::for_path(file_widget.downcast::<Label>().unwrap().text())
 }
 
-fn setup_factory(factory: &mut SignalListItemFactory, list: &MultiSelection) {
+fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
     factory.connect_setup(clone!(@weak list => move |_, list_item| {
         let row = CenterBox::default();
         let drag_source = create_drag_source(&row, &list);
