@@ -1,0 +1,55 @@
+{
+    "app-id" : "ga.string.ripdrag",
+    "runtime" : "org.gnome.Platform",
+    "runtime-version" : "44",
+    "sdk" : "org.gnome.Sdk",
+    "sdk-extensions" : [
+	"org.freedesktop.Sdk.Extension.rust-stable"
+    ],
+    "command" : "ripdrag",
+    "finish-args" : [
+	"--share=network",
+	"--share=ipc",
+	"--socket=fallback-x11",
+	"--device=dri",
+	"--socket=wayland",
+	"--filesystem=host",
+	"--talk-name=org.gtk.vfs.*",
+	"--filesystem=xdg-run/gvfs",
+	"--filesystem=xdg-run/gvfsd"
+    ],
+    "build-options" : {
+	"append-path" : "/usr/lib/sdk/rust-stable/bin",
+	"build-args" : [
+	    "--share=network"
+	],
+	"env" : {
+	    "RUST_BACKTRACE" : "1",
+	    "RUST_LOG" : "rust-test=debug"
+	}
+    },
+    "cleanup" : [
+	"/include",
+	"/lib/pkgconfig",
+	"/man",
+	"/share/doc",
+	"/share/gtk-doc",
+	"/share/man",
+	"/share/pkgconfig",
+	"*.la",
+	"*.a"
+    ],
+    "modules" : [
+	{
+	    "name" : "rust-test",
+	    "builddir" : true,
+	    "buildsystem" : "meson",
+	    "sources" : [
+		{
+		    "type" : "dir",
+		    "path" : "."
+		}
+	    ]
+	}
+    ]
+}
