@@ -1,20 +1,16 @@
 use glib::Object;
 use gtk::gio::ListStore;
-use gtk::glib;
+use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::CssProvider;
-use gtk::DragSource;
-use gtk::Widget;
-use gtk::{prelude::*, Label};
+use gtk::{glib, CssProvider, DragSource, Label, Widget};
 
-use crate::util::setup_drop_target;
-use crate::util::{drag_source_all, setup_file_model, ListWidget};
+use crate::util::{generate_file_model, setup_drag_source_all, setup_drop_target, ListWidget};
 
 pub fn generate_compact_view() -> ListWidget {
-    let file_model = setup_file_model();
+    let file_model = generate_file_model();
 
     let drag_source = DragSource::new();
-    drag_source_all(&drag_source, &file_model);
+    setup_drag_source_all(&drag_source, &file_model);
 
     let provider = CssProvider::new();
     provider.load_from_data(include_str!("style.css"));
@@ -68,9 +64,12 @@ impl CompactLabel {
 }
 
 mod imp {
-    use super::*;
-    use gtk::{glib::Properties, Align, Orientation};
     use std::cell::RefCell;
+
+    use gtk::glib::Properties;
+    use gtk::{Align, Orientation};
+
+    use super::*;
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::CompactLabel)]

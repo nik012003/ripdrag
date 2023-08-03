@@ -1,29 +1,28 @@
-use std::collections::HashSet;
 use std::path::PathBuf;
 
-use gtk::gio::ListModel;
-use gtk::{gdk, gio, glib, DropTarget};
-use gtk::{
-    gdk::ContentProvider, gio::ListStore, glib::clone, prelude::*, CenterBox, DragSource, Label,
-    MultiSelection, Widget,
-};
+use gtk::gdk::{ContentFormats, ContentProvider, DragAction, FileList};
+use gtk::gio::{File, ListStore};
+use gtk::glib::{clone, Bytes};
+use gtk::prelude::*;
+use gtk::{gdk, glib, DragSource, DropTarget, EventSequenceState, Widget};
 use url::Url;
 
-use crate::{file_object::FileObject, ARGS};
+use crate::file_object::FileObject;
+use crate::ARGS;
 
 pub struct ListWidget {
     pub list_model: ListStore,
     pub widget: Widget,
 }
 
-pub fn setup_file_model() -> ListStore {
+pub fn generate_file_model() -> ListStore {
     let file_model = ListStore::new(FileObject::static_type());
     let files: Vec<FileObject> = ARGS
         .get()
         .unwrap()
         .paths
         .iter()
-        .map(|path| FileObject::new(&gtk::gio::File::for_path(path)))
+        .map(|path| FileObject::new(&File::for_path(path)))
         .collect();
     file_model.extend_from_slice(&files);
     file_model
@@ -32,7 +31,7 @@ pub fn setup_file_model() -> ListStore {
 pub fn generate_content_provider<'a>(
     paths: impl IntoIterator<Item = &'a PathBuf>,
 ) -> Option<ContentProvider> {
-    let bytes = &gtk::glib::Bytes::from_owned(
+    let bytes = &Bytes::from_owned(
         paths
             .into_iter()
             .map(|path| -> String {
@@ -49,19 +48,22 @@ pub fn generate_content_provider<'a>(
     }
 }
 
-pub fn drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
-    drag_source.connect_prepare(clone!(@weak list_model => @default-return None, move |me, _, _| {
-            me.set_state(gtk::EventSequenceState::Claimed);
-            let files: Vec<PathBuf> = list_model.into_iter().flatten().map(|file_object| {file_object.downcast::<FileObject>().unwrap().file().path().unwrap()}).collect();
+pub fn setup_drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
+    drag_source.connect_prepare(
+        clone!(@weak list_model => @default-return None, move |me, _, _| {
+            me.set_state(EventSequenceState::Claimed);
+            let files: Vec<PathBuf> = list_model.into_iter().flatten().map(|file_object| {
+                file_object.downcast::<FileObject>().unwrap().file().path().unwrap()}).collect();
             generate_content_provider(&files)
-        }));
+        }),
+    );
 }
 
 pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
-    let drop_target = gtk::DropTarget::builder()
+    let drop_target = DropTarget::builder()
         .name("file-drop-target")
-        .actions(gdk::DragAction::COPY)
-        .formats(&gdk::ContentFormats::for_type(gdk::FileList::static_type()))
+        .actions(DragAction::COPY)
+        .formats(&ContentFormats::for_type(FileList::static_type()))
         .build();
 
     drop_target.connect_drop(

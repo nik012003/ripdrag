@@ -1,18 +1,10 @@
-use glib::Object;
-use glib::Properties;
+use gio::{FileInfo, FileQueryInfoFlags};
+use glib::{GString, MainContext, Object, Priority, Properties};
 use glib_macros::clone;
-use gtk::gdk;
-use gtk::gdk_pixbuf;
 use gtk::gdk_pixbuf::Pixbuf;
-use gtk::gio;
-use gtk::gio::FileInfo;
-use gtk::gio::FileQueryInfoFlags;
-use gtk::glib;
-use gtk::glib::GString;
-use gtk::glib::MainContext;
-use gtk::glib::Priority;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use gtk::{gdk, gdk_pixbuf, gio, glib};
 
 use crate::ARGS;
 
@@ -103,8 +95,9 @@ impl FileObject {
 }
 
 mod imp {
-    use super::*;
     use std::cell::RefCell;
+
+    use super::*;
 
     #[derive(Properties)]
     #[properties(wrapper_type = super::FileObject)]

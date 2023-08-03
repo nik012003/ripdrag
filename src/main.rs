@@ -1,5 +1,3 @@
-use std::borrow::BorrowMut;
-use std::collections::HashSet;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -9,20 +7,18 @@ use clap::Parser;
 use compact_view::generate_compact_view;
 use file_object::FileObject;
 use gtk::gdk::ffi::gdk_content_provider_new_typed;
+use gtk::gdk::{ContentProvider, DragAction};
 use gtk::gio::ffi::g_file_get_type;
-use url::Url;
-
-use gtk::gdk::{self, ContentProvider, DragAction};
-use gtk::gio::{ApplicationFlags, File, ListModel, ListStore};
+use gtk::gio::{ApplicationFlags, File, ListStore};
 use gtk::glib::{
-    self, clone, closure, closure_local, set_program_name, Bytes, Continue, GString, MainContext,
-    Priority, PRIORITY_DEFAULT,
+    self, clone, set_program_name, Bytes, Continue, MainContext, Priority, PRIORITY_DEFAULT,
 };
+use gtk::prelude::*;
 use gtk::{
-    prelude::*, Application, ApplicationWindow, Button, CenterBox, DragSource, DropTarget,
-    EventControllerKey, Image, Label, ListBox, ListItem, ListView, MultiSelection, Orientation,
-    PolicyType, ScrolledWindow, SelectionModel, SignalListItemFactory,
+    Application, ApplicationWindow, Button, CenterBox, DragSource, DropTarget, EventControllerKey,
+    Image, ListBox, Orientation, PolicyType, ScrolledWindow,
 };
+use url::Url;
 
 mod file_object;
 mod list_view;

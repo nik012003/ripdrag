@@ -1,21 +1,21 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::collections::HashSet;
+use std::path::PathBuf;
 
-use crate::{
-    file_object::FileObject,
-    util::{
-        drag_source_all, generate_content_provider, setup_drop_target, setup_file_model, ListWidget,
-    },
-    ARGS, CURRENT_DIRECTORY,
-};
 use glib_macros::clone;
 use gtk::gdk::*;
+use gtk::gio::{self, ListStore};
+use gtk::prelude::*;
 use gtk::{
-    gdk,
-    gio::{self, ListStore},
-    prelude::*,
-    CenterBox, DragSource, Label, ListItem, ListView, MultiSelection, SignalListItemFactory,
+    gdk, CenterBox, DragSource, Label, ListItem, ListView, MultiSelection, SignalListItemFactory,
     Widget,
 };
+
+use crate::file_object::FileObject;
+use crate::util::{
+    generate_content_provider, generate_file_model, setup_drag_source_all, setup_drop_target,
+    ListWidget,
+};
+use crate::{ARGS, CURRENT_DIRECTORY};
 
 pub fn generate_list_view() -> ListWidget {
     let mut list_data = build_list_data();
@@ -43,15 +43,14 @@ pub fn generate_list_view() -> ListWidget {
 }
 
 fn build_list_data() -> (MultiSelection, SignalListItemFactory) {
-    // setup factory
     let factory = SignalListItemFactory::new();
-    (MultiSelection::new(Some(setup_file_model())), factory)
+    (MultiSelection::new(Some(generate_file_model())), factory)
 }
 
 fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource {
     let drag_source = DragSource::new();
     if ARGS.get().unwrap().all {
-        drag_source_all(
+        setup_drag_source_all(
             &drag_source,
             &selection.model().unwrap().downcast::<ListStore>().unwrap(),
         );
