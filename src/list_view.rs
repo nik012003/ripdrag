@@ -75,6 +75,7 @@ fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource
             }
         }));
     }
+
     drag_source
 }
 
@@ -107,9 +108,11 @@ fn get_file(row: &CenterBox) -> gio::File {
     gio::File::for_path(file_widget.downcast::<Label>().unwrap().text())
 }
 
+// Setup the widgets in the ListView
 fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
     factory.connect_setup(clone!(@weak list => move |_, list_item| {
         let row = CenterBox::default();
+
         let drag_source = create_drag_source(&row, &list);
         let gesture_click = create_gesture_click(&row);
         row.add_controller(gesture_click);

@@ -12,19 +12,20 @@ pub fn generate_compact_view() -> ListWidget {
     let drag_source = DragSource::new();
     setup_drag_source_all(&drag_source, &file_model);
 
+    let obj = CompactLabel::new(file_model);
+    let model = obj.model();
+    let obj = obj.upcast::<Widget>();
+
+    // styling
     let provider = CssProvider::new();
     provider.load_from_data(include_str!("style.css"));
-
     gtk::style_context_add_provider_for_display(
         &gtk::gdk::Display::default().expect("Could not connect to a display."),
         &provider,
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
-
-    let obj = CompactLabel::new(file_model);
-    let model = obj.model();
-    let obj = obj.upcast::<Widget>();
     obj.add_css_class("drag");
+    obj.set_cursor_from_name(Some("grab"));
 
     obj.add_controller(drag_source);
     setup_drop_target(&model, &obj);
