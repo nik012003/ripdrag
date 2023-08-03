@@ -34,7 +34,9 @@ pub fn generate_list_view() -> ListWidget {
         .unwrap();
     let widget = list_view.upcast::<Widget>();
 
-    setup_drop_target(&model, &widget);
+    if ARGS.get().unwrap().keep {
+        setup_drop_target(&model, &widget);
+    }
 
     ListWidget {
         list_model: model,
