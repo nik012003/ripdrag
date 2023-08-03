@@ -56,19 +56,22 @@ fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource
         );
     } else {
         drag_source.connect_prepare(clone!(@weak row, @weak selection, => @default-return None, move |me, _, _| {
+            // This will prevent the click to trigger, a drag should happen!
             me.set_state(gtk::EventSequenceState::Claimed);
             let selected = selection.selection();
-            let mut set : HashSet<PathBuf> = HashSet::with_capacity(selected.size() as usize);
+            let mut files : HashSet<PathBuf> = HashSet::with_capacity(selected.size() as usize);
             for index in 0..selected.size() {
-                set.insert(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().path().unwrap());
+                files.insert(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().path().unwrap());
             }
+
+            // Is the activated row also selected?
             let row_file = get_file(&row).path().unwrap();
-            if !set.contains(&row_file)
+            if !files.contains(&row_file)
             {
                 selection.unselect_all();
                 generate_content_provider(&[row_file])
             } else {
-                generate_content_provider(&set)
+                generate_content_provider(&files)
             }
         }));
     }
@@ -78,6 +81,7 @@ fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource
 fn create_gesture_click(row: &CenterBox) -> gtk::GestureClick {
     let click = gtk::GestureClick::new();
     click.connect_released(clone!(@weak row => move |me, _, _, _|{
+        // Ignore the click when CTRL is being hold
         if me.current_event_state().contains(gdk::ModifierType::CONTROL_MASK) {
             return;
         }
@@ -93,6 +97,7 @@ fn create_gesture_click(row: &CenterBox) -> gtk::GestureClick {
     click
 }
 
+/// This is a helper function that makes a file from the CenterBox widget.
 fn get_file(row: &CenterBox) -> gio::File {
     let file_widget = if ARGS.get().unwrap().icons_only {
         row.start_widget().unwrap()
@@ -132,6 +137,7 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
             .expect("The child has to be a `Label`.");
 
         // show either relative or absolute path
+        // This is safe because the file needs to exist
         let str = if file_object
             .file()
             .has_parent(Some(CURRENT_DIRECTORY.get().unwrap()))

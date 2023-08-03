@@ -41,6 +41,7 @@ glib::wrapper! {
         @implements gtk::Accessible, gtk::Orientable, gtk::Buildable, gtk::ConstraintTarget;
 }
 
+// This is necessary to keep the model alive, otherwise it will be dropped.
 impl CompactLabel {
     pub fn new(model: ListStore) -> Self {
         let create_string = |arg| format!("{} elements", arg);

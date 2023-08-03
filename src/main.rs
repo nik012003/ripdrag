@@ -81,7 +81,9 @@ struct Cli {
 }
 
 // switch to Lazy Cell when it is stable.
+/// Constant that is initialized once on start. Contains the directory where it was started from.
 static CURRENT_DIRECTORY: OnceLock<gio::File> = OnceLock::new();
+/// Constant that is initialized once on start. clap will parse the commandline arguments into this.
 static ARGS: OnceLock<Cli> = OnceLock::new();
 
 fn main() {
@@ -138,7 +140,6 @@ fn build_ui(app: &Application) {
         .titlebar(&titlebar)
         .build();
 
-    // Kill the app when Escape is pressed
     let event_controller = EventControllerKey::new();
     event_controller.connect_key_pressed(|_, key, _, _| {
         if [gtk::gdk::Key::Escape, gtk::gdk::Key::q, gtk::gdk::Key::Q].contains(&key) {
@@ -155,6 +156,9 @@ fn build_ui(app: &Application) {
     }
 }
 
+/// Listen to input from stdin.
+/// Parses the input and checks if it is an existing file path.
+/// Valid files will be added to the model.
 fn listen_to_stdin(model: &ListStore) {
     let (sender, receiver) = MainContext::channel(Priority::default());
     gio::spawn_blocking(move || {

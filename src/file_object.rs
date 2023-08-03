@@ -1,4 +1,4 @@
-use gio::{FileInfo, FileQueryInfoFlags};
+use gio::FileQueryInfoFlags;
 use glib::{GString, MainContext, Object, Priority, Properties};
 use glib_macros::clone;
 use gtk::gdk_pixbuf::Pixbuf;
@@ -7,7 +7,6 @@ use gtk::subclass::prelude::*;
 use gtk::{gdk, gdk_pixbuf, gio, glib};
 
 use crate::ARGS;
-
 glib::wrapper! {
     pub struct FileObject(ObjectSubclass<imp::FileObject>);
 }
@@ -25,7 +24,7 @@ impl MimeType for gio::File {
         );
 
         file_type
-            .unwrap_or(FileInfo::default())
+            .unwrap_or_default()
             .content_type()
             .unwrap_or(GString::format(format_args!("text/plain")))
     }
@@ -35,6 +34,7 @@ impl FileObject {
     pub fn new(file: &gio::File) -> Self {
         let obj = Object::builder().property("file", file);
         let icon_name = gio::content_type_get_generic_icon_name(&file.mime_type());
+        // use the default thumbnail
         let image = gtk::Image::builder()
             .icon_name(icon_name.unwrap_or(glib::GString::format(format_args!("text/default"))))
             .pixel_size(ARGS.get().unwrap().icon_size)
@@ -42,10 +42,13 @@ impl FileObject {
         let obj = obj.property("thumbnail", image).build();
         let file = file.clone();
 
+        // For every image a thumbnail of the image is sent. When it is not an image a None is sent.
+        // There is no thumbnail for GIFs.
         let (sender, receiver) = MainContext::channel(Priority::default());
         gio::spawn_blocking(move || {
             let print_err = |err| eprintln!("{}", err);
             let mime_type = file.mime_type();
+            // this only works for images
             if !ARGS.get().unwrap().disable_thumbnails
                 && gio::content_type_is_mime_type(&mime_type, "image/*")
             {
@@ -75,6 +78,7 @@ impl FileObject {
                 let _ = sender.send(None).map_err(print_err);
             }
         });
+        // Sets the thumbnail and closes the receiver channel regardless of what was sent.
         receiver.attach(
             None,
             clone!(@weak obj => @default-return
