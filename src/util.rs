@@ -2,11 +2,11 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use gtk::gio::ListModel;
+use gtk::{gdk, gio, glib, DropTarget};
 use gtk::{
     gdk::ContentProvider, gio::ListStore, glib::clone, prelude::*, CenterBox, DragSource, Label,
     MultiSelection, Widget,
 };
-use gtk::{gio, glib};
 use url::Url;
 
 use crate::{file_object::FileObject, ARGS};
@@ -55,4 +55,26 @@ pub fn drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
             let files: Vec<PathBuf> = list_model.into_iter().flatten().map(|file_object| {file_object.downcast::<FileObject>().unwrap().file().path().unwrap()}).collect();
             generate_content_provider(&files)
         }));
+}
+
+pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
+    let drop_target = DropTarget::new(gio::File::static_type(), gdk::DragAction::COPY);
+    drop_target.connect_drop(
+        clone!(@weak model => @default-return false, move |_, value, _, _|
+            {
+                if let Ok(file) = value.get::<gio::File>() {
+                    let file = FileObject::new(&file);
+                    if ARGS.get().unwrap().keep {
+                        model.append(&file);
+                    }
+                    println!("{}", file.file().parse_name());
+                    true
+                } else {
+                    false
+                }
+
+        }),
+    );
+
+    widget.add_controller(drop_target);
 }

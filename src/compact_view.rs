@@ -7,6 +7,7 @@ use gtk::DragSource;
 use gtk::Widget;
 use gtk::{prelude::*, Label};
 
+use crate::util::setup_drop_target;
 use crate::util::{drag_source_all, setup_file_model, ListWidget};
 
 pub fn generate_compact_view() -> ListWidget {
@@ -18,7 +19,6 @@ pub fn generate_compact_view() -> ListWidget {
     let provider = CssProvider::new();
     provider.load_from_data(include_str!("style.css"));
 
-    // Add the provider to the default screen
     gtk::style_context_add_provider_for_display(
         &gtk::gdk::Display::default().expect("Could not connect to a display."),
         &provider,
@@ -26,13 +26,16 @@ pub fn generate_compact_view() -> ListWidget {
     );
 
     let obj = CompactLabel::new(file_model);
+    let model = obj.model();
+    let obj = obj.upcast::<Widget>();
     obj.add_css_class("drag");
 
     obj.add_controller(drag_source);
+    setup_drop_target(&model, &obj);
 
     ListWidget {
-        list_model: obj.model(),
-        widget: obj.upcast::<Widget>(),
+        list_model: model,
+        widget: obj,
     }
 }
 

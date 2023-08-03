@@ -2,7 +2,9 @@ use std::{collections::HashSet, path::PathBuf};
 
 use crate::{
     file_object::FileObject,
-    util::{drag_source_all, generate_content_provider, setup_file_model, ListWidget},
+    util::{
+        drag_source_all, generate_content_provider, setup_drop_target, setup_file_model, ListWidget,
+    },
     ARGS, CURRENT_DIRECTORY,
 };
 use glib_macros::clone;
@@ -20,18 +22,23 @@ pub fn generate_list_view() -> ListWidget {
     setup_factory(&mut list_data.1, &list_data.0);
     let list_view = ListView::new(Some(list_data.0), Some(list_data.1));
 
+    // lol
+    let model = list_view
+        .model()
+        .unwrap()
+        .downcast::<MultiSelection>()
+        .unwrap()
+        .model()
+        .unwrap()
+        .downcast::<ListStore>()
+        .unwrap();
+    let widget = list_view.upcast::<Widget>();
+
+    setup_drop_target(&model, &widget);
+
     ListWidget {
-        // wtf??
-        list_model: list_view
-            .model()
-            .unwrap()
-            .downcast::<MultiSelection>()
-            .unwrap()
-            .model()
-            .unwrap()
-            .downcast::<ListStore>()
-            .unwrap(),
-        widget: list_view.upcast::<Widget>(),
+        list_model: model,
+        widget,
     }
 }
 
