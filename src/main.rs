@@ -83,7 +83,7 @@ fn main() {
     let args = Cli::parse();
     set_program_name(Some("ripdrag"));
     let app = Application::builder()
-        .application_id("ga.strin.ripdrag")
+        .application_id("it.catboy.ripdrag")
         .flags(ApplicationFlags::NON_UNIQUE)
         .build();
     app.connect_activate(move |app| build_ui(app, args.clone()));
