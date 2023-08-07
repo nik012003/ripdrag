@@ -20,44 +20,44 @@ Used in combination with a fuzzy finder like [fzf](https://github.com/junegunn/f
 <details>
   <summary>Click to see the installation guide</summary>
 
-    ### Install the required dependencies
-    #### Ubuntu 22.04 or later
-    ```
-    sudo apt install cargo libgtk-4-dev build-essential
-    ```
-    #### Fedora\CentOS\RHEL 
-    ```
-    sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cairo-gobject-devel cairo-devel python2-cairo-devel gtk4-devel
-    ```
-    #### Arch Linux
-    ripdrag is on the AUR: [ripdrag-git](https://aur.archlinux.org/packages/ripdrag-git)
+### Install the required dependencies
+#### Ubuntu 22.04 or later
+```
+sudo apt install cargo libgtk-4-dev build-essential
+```
+#### Fedora\CentOS\RHEL 
+```
+sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cairo-gobject-devel cairo-devel python2-cairo-devel gtk4-devel
+```
+#### Arch Linux
+ripdrag is on the AUR: [ripdrag-git](https://aur.archlinux.org/packages/ripdrag-git)
 
-    If you want to install it manually, you need to install the requirements:
-    ```
-    sudo pacman -Sy --needed rust gtk4 base-devel
-    ```
-    #### MacOS
-    You need to have [homebrew](https://brew.sh) installed.
-    ```
-    brew install rustup gtk4
-    rustup-init
-    ```
-    #### NetBSD
-    A pre-compiled binary is available from the official repositories. To install it simply run,
-    ```
-    pkgin install ripdrag
-    ```
+If you want to install it manually, you need to install the requirements:
+```
+sudo pacman -Sy --needed rust gtk4 base-devel
+```
+#### MacOS
+You need to have [homebrew](https://brew.sh) installed.
+```
+brew install rustup gtk4
+rustup-init
+```
+#### NetBSD
+A pre-compiled binary is available from the official repositories. To install it simply run,
+```
+pkgin install ripdrag
+```
 
-    ### Install the binary
-    (Do not use sudo, if you don't want it to be installed on root)
-    ```
-    cargo install ripdrag
-    ```
-    ### Add cargo to path
-    (Not added by default)
-    ```
-    PATH=$PATH:~/.cargo/bin
-    ```
+### Install the binary
+(Do not use sudo, if you don't want it to be installed on root)
+```
+cargo install ripdrag
+```
+### Add cargo to path
+(Not added by default)
+```
+PATH=$PATH:~/.cargo/bin
+```
 
 </details>
 
