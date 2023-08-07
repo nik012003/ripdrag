@@ -1,3 +1,4 @@
+use crate::ARGS;
 use glib::Object;
 use gtk::gio::ListStore;
 use gtk::prelude::*;
@@ -28,7 +29,9 @@ pub fn generate_compact_view() -> ListWidget {
     obj.set_cursor_from_name(Some("grab"));
 
     obj.add_controller(drag_source);
-    setup_drop_target(&model, &obj);
+    if ARGS.get().unwrap().target {
+        setup_drop_target(&model, &obj);
+    }
 
     ListWidget {
         list_model: model,

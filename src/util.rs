@@ -63,7 +63,7 @@ pub fn setup_drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
 }
 
 /// TODO: This will not work for directories <https://gitlab.gnome.org/GNOME/gtk/-/issues/5348>.
-/// Will add dropped files to the model.
+/// Will add dropped files to the model if keep is set.
 pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
     let drop_target = DropTarget::builder()
         .name("file-drop-target")
@@ -83,11 +83,9 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
                     if ARGS.get().unwrap().keep {
                         model.extend_from_slice(&vec);
                     }
-                    true
-                } else {
-                    false
-                }
-
+                    return true
+                } 
+                false
         }),
     );
 
