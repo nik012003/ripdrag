@@ -17,44 +17,49 @@ Many applications expect files to be dragged into them. Normally you would have 
 Used in combination with a fuzzy finder like [fzf](https://github.com/junegunn/fzf) - e.g. ```ripdrag $(fzf)``` - can make for an amazingly quick and painless terminal experience.
 
 # Installation
-### Install the required dependencies
-#### Ubuntu 22.04 or later
-```
-sudo apt install cargo libgtk-4-dev build-essential
-```
-#### Fedora\CentOS\RHEL 
-```
-sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cairo-gobject-devel cairo-devel python2-cairo-devel gtk4-devel
-```
-#### Arch Linux
-ripdrag is on the AUR: [ripdrag-git](https://aur.archlinux.org/packages/ripdrag-git)
+<details>
+  <summary>Click to see the installation guide</summary>
 
-If you want to install it manually, you need to install the requirements:
-```
-sudo pacman -Sy --needed rust gtk4 base-devel
-```
-#### MacOS
-You need to have [homebrew](https://brew.sh) installed.
-```
-brew install rustup gtk4
-rustup-init
-```
-#### NetBSD
-A pre-compiled binary is available from the official repositories. To install it simply run,
-```
-pkgin install ripdrag
-```
+    ### Install the required dependencies
+    #### Ubuntu 22.04 or later
+    ```
+    sudo apt install cargo libgtk-4-dev build-essential
+    ```
+    #### Fedora\CentOS\RHEL 
+    ```
+    sudo dnf install cargo gdk-pixbuf2-devel pango-devel graphene-devel cairo-gobject-devel cairo-devel python2-cairo-devel gtk4-devel
+    ```
+    #### Arch Linux
+    ripdrag is on the AUR: [ripdrag-git](https://aur.archlinux.org/packages/ripdrag-git)
 
-### Install the binary
-(Do not use sudo, if you don't want it to be installed on root)
-```
-cargo install ripdrag
-```
-### Add cargo to path
-(Not added by default)
-```
-PATH=$PATH:~/.cargo/bin
-```
+    If you want to install it manually, you need to install the requirements:
+    ```
+    sudo pacman -Sy --needed rust gtk4 base-devel
+    ```
+    #### MacOS
+    You need to have [homebrew](https://brew.sh) installed.
+    ```
+    brew install rustup gtk4
+    rustup-init
+    ```
+    #### NetBSD
+    A pre-compiled binary is available from the official repositories. To install it simply run,
+    ```
+    pkgin install ripdrag
+    ```
+
+    ### Install the binary
+    (Do not use sudo, if you don't want it to be installed on root)
+    ```
+    cargo install ripdrag
+    ```
+    ### Add cargo to path
+    (Not added by default)
+    ```
+    PATH=$PATH:~/.cargo/bin
+    ```
+
+</details>
 
 # Usage
 ```
@@ -68,7 +73,6 @@ OPTIONS:
     -v, --verbose                  Be verbose
     -t, --target                   Act as a target instead of source
     -k, --keep                     With --target, keep files to drag out
-    -p, --print-path               With --target, keep files to drag out
     -r, --resizable                Make the window resizable
     -x, --and-exit                 Exit after first successful drag or drop
     -i, --icons-only               Only display icons, no labels
@@ -79,8 +83,8 @@ OPTIONS:
     -I, --from-stdin               Accept paths from stdin
     -a, --all                      Drag all the items together
     -A, --all-compact              Show only the number of items and drag them together
-    -h, --help                     Print help information
-    -V, --version                  Print version information
+    -h, --help                     Print help
+    -V, --version                  Print version
 ```
 
 # TODO

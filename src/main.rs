@@ -31,10 +31,6 @@ struct Cli {
     #[arg(short, long, requires = "target")]
     keep: bool,
 
-    /// With --target, keep files to drag out
-    #[arg(short, long, requires = "target")]
-    print_path: bool,
-
     /// Make the window resizable
     #[arg(short, long)]
     resizable: bool,
