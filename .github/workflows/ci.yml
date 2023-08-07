@@ -28,7 +28,7 @@ jobs:
           override: true
       - uses: swatinem/rust-cache@v1
       - name: Install system dependencies
-        run: sudo apt install -y libgtk-4-dev build-essential
+        run: sudo apt update && sudo apt install -y libgtk-4-dev build-essential
       - name: cargo-check
         uses: actions-rs/cargo@v1
         with:
