@@ -5,13 +5,16 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{glib, CssProvider, DragSource, Label, Widget};
 
-use crate::util::{generate_file_model, setup_drag_source_all, setup_drop_target, ListWidget};
+use crate::util::{generate_file_model, setup_drag_source_all, setup_drop_target, ListWidget, drag_source_and_exit};
 
 pub fn generate_compact_view() -> ListWidget {
     let file_model = generate_file_model();
 
     let drag_source = DragSource::new();
     setup_drag_source_all(&drag_source, &file_model);
+    if ARGS.get().unwrap().and_exit {
+        drag_source_and_exit(&drag_source);
+    }
 
     let obj = CompactLabel::new(file_model);
     let model = obj.model();
