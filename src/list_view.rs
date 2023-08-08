@@ -13,7 +13,7 @@ use gtk::{
 use crate::file_object::FileObject;
 use crate::util::{
     generate_content_provider, generate_file_model, setup_drag_source_all, setup_drop_target,
-    ListWidget,
+    ListWidget, drag_source_and_exit,
 };
 use crate::{ARGS, CURRENT_DIRECTORY};
 
@@ -78,6 +78,9 @@ fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource
         }));
     }
 
+    if ARGS.get().unwrap().and_exit {
+        drag_source_and_exit(&drag_source);
+    }
     drag_source
 }
 

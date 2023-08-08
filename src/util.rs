@@ -91,3 +91,9 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
 
     widget.add_controller(drop_target);
 }
+
+pub fn drag_source_and_exit(drag_source: &DragSource) {
+    drag_source.connect_drag_end(|_, _, _|{
+        std::process::exit(0);
+    });
+}
