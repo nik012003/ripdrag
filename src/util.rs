@@ -1,11 +1,8 @@
-use std::path::PathBuf;
-
-use gtk::gdk::{ContentFormats, ContentProvider, DragAction, FileList};
-use gtk::gio::{File, ListStore};
+use gtk::gdk::{ContentProvider, DragAction, FileList};
+use gtk::gio::{self, File, ListStore};
 use gtk::glib::{clone, Bytes};
 use gtk::prelude::*;
 use gtk::{gdk, glib, DragSource, DropTarget, EventSequenceState, Widget};
-use url::Url;
 
 use crate::file_object::FileObject;
 use crate::ARGS;
@@ -31,35 +28,85 @@ pub fn generate_file_model() -> ListStore {
 
 /// Returns data for dragging files.
 pub fn generate_content_provider<'a>(
-    paths: impl IntoIterator<Item = &'a PathBuf>,
+    paths: impl IntoIterator<Item = &'a String>,
 ) -> Option<ContentProvider> {
-    let bytes = &Bytes::from_owned(
+    let bytes = Bytes::from_owned(
         paths
             .into_iter()
-            .map(|path| -> String {
-                Url::from_file_path(path.canonicalize().unwrap())
-                    .unwrap()
-                    .to_string()
-            })
-            .fold("".to_string(), |accum, item| [accum, item].join("\n")),
+            .fold("".to_string(), |accum, item| format!("{}\n{}", accum, item)),
     );
+
     if bytes.is_empty() {
         None
     } else {
-        Some(ContentProvider::for_bytes("text/uri-list", bytes))
+        Some(ContentProvider::for_bytes("text/uri-list", &bytes))
     }
 }
-
 /// For the -a or -A flag.
 pub fn setup_drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
     drag_source.connect_prepare(
         clone!(@weak list_model => @default-return None, move |me, _, _| {
             me.set_state(EventSequenceState::Claimed);
-            let files: Vec<PathBuf> = list_model.into_iter().flatten().map(|file_object| {
-                file_object.downcast::<FileObject>().unwrap().file().path().unwrap()}).collect();
+            let files: Vec<String> = list_model.into_iter().flatten().map(|file_object| {
+                file_object.downcast::<FileObject>().unwrap().file().uri().to_string()}).collect();
             generate_content_provider(&files)
         }),
     );
+}
+
+fn create_tmp_file(file: &File) -> Option<FileObject> {
+    let print_err = |err| eprintln!("{}", err);
+    if file.path().is_some() {
+        Some(FileObject::new(file))
+    } else {
+        let info = file.query_info(
+            gio::FILE_ATTRIBUTE_STANDARD_DISPLAY_NAME,
+            gio::FileQueryInfoFlags::NONE,
+            gio::Cancellable::NONE,
+        );
+        if let Err(err) = info {
+            print_err(err);
+            return None;
+        }
+        let tmp_file = gio::File::new_tmp(None::<String>);
+        match tmp_file {
+            Ok(val) => {
+                let (tmp_file, stream) = val;
+                // download the file
+                let bytes = file.load_bytes(gio::Cancellable::NONE);
+                if bytes.is_err() {
+                    return None;
+                }
+                // write it
+                let _ = stream
+                    .output_stream()
+                    .write_bytes(&bytes.unwrap().0, gio::Cancellable::NONE)
+                    .map_err(|err| println!("{}", err));
+
+                // rename it
+                // unwrapping basename is safe because the file exists
+                let rename_result = tmp_file.set_display_name(
+                    &format!(
+                        "{}{}",
+                        tmp_file.basename().unwrap().display(),
+                        info.unwrap().display_name()
+                    ),
+                    gio::Cancellable::NONE,
+                );
+
+                if let Err(err) = rename_result {
+                    print_err(err);
+                    Some(FileObject::new(&tmp_file))
+                } else {
+                    Some(FileObject::new(&rename_result.unwrap()))
+                }
+            }
+            Err(err) => {
+                println!("{}", err);
+                None
+            }
+        }
+    }
 }
 
 /// TODO: This will not work for directories <https://gitlab.gnome.org/GNOME/gtk/-/issues/5348>.
@@ -68,8 +115,8 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
     let drop_target = DropTarget::builder()
         .name("file-drop-target")
         .actions(DragAction::COPY)
-        .formats(&ContentFormats::for_type(FileList::static_type()))
         .build();
+    drop_target.set_types(&[FileList::static_type()]);
 
     drop_target.connect_drop(
         clone!(@weak model => @default-return false, move |_, value, _, _|
@@ -79,12 +126,18 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
                     if files.is_empty() {
                         return false;
                     }
-                    let vec: Vec<FileObject> = files.iter().map(|item| {println!("{}", item.parse_name()); FileObject::new(item)}).collect();
+
+                    let vec: Vec<FileObject> = files.iter()
+                    .filter_map(|item| {
+                        println!("{}", item.parse_name());
+                        create_tmp_file(item)
+                    }).collect();
+
                     if ARGS.get().unwrap().keep {
                         model.extend_from_slice(&vec);
                     }
                     return true
-                } 
+                }
                 false
         }),
     );
@@ -93,7 +146,7 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
 }
 
 pub fn drag_source_and_exit(drag_source: &DragSource) {
-    drag_source.connect_drag_end(|_, _, _|{
+    drag_source.connect_drag_end(|_, _, _| {
         std::process::exit(0);
     });
 }

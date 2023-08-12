@@ -12,8 +12,8 @@ use gtk::{
 
 use crate::file_object::FileObject;
 use crate::util::{
-    generate_content_provider, generate_file_model, setup_drag_source_all, setup_drop_target,
-    ListWidget, drag_source_and_exit,
+    drag_source_and_exit, generate_content_provider, generate_file_model, setup_drag_source_all,
+    setup_drop_target, ListWidget,
 };
 use crate::{ARGS, CURRENT_DIRECTORY};
 
@@ -61,13 +61,13 @@ fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource
             // This will prevent the click to trigger, a drag should happen!
             me.set_state(gtk::EventSequenceState::Claimed);
             let selected = selection.selection();
-            let mut files : HashSet<PathBuf> = HashSet::with_capacity(selected.size() as usize);
+            let mut files : HashSet<String> = HashSet::with_capacity(selected.size() as usize);
             for index in 0..selected.size() {
-                files.insert(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().path().unwrap());
+                files.insert(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().uri().to_string());
             }
 
             // Is the activated row also selected?
-            let row_file = get_file(&row).path().unwrap();
+            let row_file = get_file(&row).uri().to_string();
             if !files.contains(&row_file)
             {
                 selection.unselect_all();
