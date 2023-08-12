@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
 
 use glib_macros::clone;
 use gtk::gdk::*;
