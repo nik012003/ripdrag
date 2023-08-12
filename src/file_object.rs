@@ -35,11 +35,11 @@ impl FileObject {
         let obj = Object::builder().property("file", file);
         let icon_name = gio::content_type_get_generic_icon_name(&file.mime_type());
         // use the default thumbnail
-        let image = gtk::Image::builder()
+        let icon = gtk::Image::builder()
             .icon_name(icon_name.unwrap_or(glib::GString::format(format_args!("text/default"))))
             .pixel_size(ARGS.get().unwrap().icon_size)
             .build();
-        let obj = obj.property("thumbnail", image).build();
+        let obj = obj.property("thumbnail", icon).build();
         let file = file.clone();
 
         // For every image a thumbnail of the image is sent. When it is not an image a None is sent.
@@ -47,6 +47,10 @@ impl FileObject {
         let (sender, receiver) = MainContext::channel(Priority::default());
         gio::spawn_blocking(move || {
             let print_err = |err| eprintln!("{}", err);
+            if !file.query_exists(gio::Cancellable::NONE) {
+                let _ = sender.send(None).map_err(print_err);
+            }
+
             let mime_type = file.mime_type();
             // this only works for images
             if !ARGS.get().unwrap().disable_thumbnails
