@@ -57,6 +57,7 @@ pub fn setup_drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
 fn create_tmp_file(file: &File) -> Option<FileObject> {
     let print_err = |err| eprintln!("{}", err);
     if file.path().is_some() {
+        println!("It's some {:?}", file.path());
         Some(FileObject::new(file))
     } else {
         let info = file.query_info(
@@ -116,29 +117,40 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
         .name("file-drop-target")
         .actions(DragAction::COPY)
         .build();
-    drop_target.set_types(&[FileList::static_type()]);
+    drop_target.set_types(&[FileList::static_type(), glib::types::Type::STRING]);
 
     drop_target.connect_drop(
         clone!(@weak model => @default-return false, move |_, value, _, _|
             {
-                if let Ok(files) = value.get::<gdk::FileList>() {
-                    let files = files.files();
-                    if files.is_empty() {
-                        return false;
-                    }
+                let mut files_vec: Vec<File> = vec![];
 
-                    let vec: Vec<FileObject> = files.iter()
+                if let Ok(file_uris) = value.get::<&str>(){
+                    files_vec = file_uris.split('\n')
+                        .collect::<Vec<&str>>()
+                        .iter()
+                        .filter_map(|uri| glib::Uri::parse(uri, glib::UriFlags::PARSE_RELAXED).ok())
+                        .map(|uri| File::for_uri(uri.to_str().as_str()))
+                        .collect();
+                }
+                else if let Ok(files) = value.get::<gdk::FileList>() {
+                    files_vec = files.files();
+                }
+
+                if files_vec.is_empty(){
+                    return  false;
+                }
+
+                let file_objs:Vec<FileObject> = files_vec.iter()
                     .filter_map(|item| {
                         println!("{}", item.parse_name());
                         create_tmp_file(item)
                     }).collect();
 
-                    if ARGS.get().unwrap().keep {
-                        model.extend_from_slice(&vec);
-                    }
-                    return true
+                if ARGS.get().unwrap().keep {
+                    model.extend_from_slice(&file_objs);
                 }
-                false
+
+                true
         }),
     );
 

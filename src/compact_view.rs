@@ -5,7 +5,9 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{glib, CssProvider, DragSource, Label, Widget};
 
-use crate::util::{generate_file_model, setup_drag_source_all, setup_drop_target, ListWidget, drag_source_and_exit};
+use crate::util::{
+    drag_source_and_exit, generate_file_model, setup_drag_source_all, setup_drop_target, ListWidget,
+};
 
 pub fn generate_compact_view() -> ListWidget {
     let file_model = generate_file_model();
