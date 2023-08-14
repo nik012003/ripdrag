@@ -15,7 +15,7 @@ exclude = ["/.vscode"]
 clap = { version = "4.1.8", features = ["derive"] }
 gtk = { version = "0.6.6", package = "gtk4", features = ["v4_6"] }
 glib-macros = "0.18.0"
-opener = "0.5.2"
+opener = "0.6.1"
 
 [profile.release]
 strip = true
