@@ -147,6 +147,8 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
 
                 if ARGS.get().unwrap().keep {
                     model.extend_from_slice(&file_objs);
+                } else if ARGS.get().unwrap().and_exit{
+                    std::process::exit(0);
                 }
 
                 true
