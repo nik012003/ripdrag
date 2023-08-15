@@ -57,7 +57,6 @@ pub fn setup_drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
 fn create_tmp_file(file: &File) -> Option<FileObject> {
     let print_err = |err| eprintln!("{}", err);
     if file.path().is_some() {
-        println!("It's some {:?}", file.path());
         Some(FileObject::new(file))
     } else {
         let info = file.query_info(
