@@ -23,7 +23,8 @@ Used in combination with a fuzzy finder like [fzf](https://github.com/junegunn/f
 ### Install the required dependencies
 #### Ubuntu 22.04 or later
 ```
-sudo apt install cargo libgtk-4-dev build-essential
+sudo apt install libgtk-4-dev build-essential curl
+curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh
 ```
 #### Fedora\CentOS\RHEL 
 ```
