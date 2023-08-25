@@ -1,5 +1,6 @@
 use crate::ARGS;
 use glib::Object;
+use glib_macros::clone;
 use gtk::gio::ListStore;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
@@ -65,10 +66,14 @@ impl CompactLabel {
         obj.set_label(label);
 
         obj.append(&obj.label());
+
         obj.model()
-            .bind_property("n-items", &obj.label(), "label")
-            .transform_to(|_, item_count: u32| Some(format!("{} elements", item_count)))
-            .build();
+            .connect_items_changed(clone!(@weak obj => @default-return (),
+                move |_,_,_,_| {
+                obj.label().set_text(&create_string(obj.model().n_items()));
+                obj.label().set_tooltip_text(Some(&format!("Drag {}", create_string(obj.model().n_items()))));
+            }));
+
         obj
     }
 }
