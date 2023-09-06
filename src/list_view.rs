@@ -87,7 +87,8 @@ fn create_gesture_click(row: &CenterBox) -> gtk::GestureClick {
     let click = gtk::GestureClick::new();
     click.connect_released(clone!(@weak row => move |me, _, _, _|{
         // Ignore the click when CTRL is being hold
-        if me.current_event_state().contains(gdk::ModifierType::CONTROL_MASK) {
+        if me.current_event_state().contains(gdk::ModifierType::CONTROL_MASK) ||
+            me.current_event_state().contains(gdk::ModifierType::SHIFT_MASK) {
             return;
         }
         let file = get_file(&row);
