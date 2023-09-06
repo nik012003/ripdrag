@@ -71,6 +71,10 @@ struct Cli {
     #[arg(short = 'A', long)]
     all_compact: bool,
 
+    /// Show only the number of items and drag them together
+    #[arg(short = 'n', long)]
+    no_click: bool,
+
     /// Paths to the files you want to drag
     #[arg(value_name = "PATH")]
     paths: Vec<PathBuf>,

@@ -119,8 +119,10 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
         let row = CenterBox::default();
 
         let drag_source = create_drag_source(&row, &list);
-        let gesture_click = create_gesture_click(&row);
-        row.add_controller(gesture_click);
+        if !ARGS.get().unwrap().no_click {
+            let gesture_click = create_gesture_click(&row);
+            row.add_controller(gesture_click);
+        }
         row.add_controller(drag_source);
 
         list_item
