@@ -38,6 +38,14 @@ struct Cli {
     #[arg(short = 'x', long)]
     and_exit: bool,
 
+    /// Print paths that have been dragged successully
+    #[arg(long)]
+    and_print: bool,
+
+    /// Print uri of paths that have been dragged successully
+    #[arg(long)]
+    and_print_uri: bool,
+
     /// Only display icons, no labels
     #[arg(short, long)]
     icons_only: bool,
@@ -133,7 +141,7 @@ fn build_source_ui(list_box: ListBox, args: Cli){
             if args.all_compact{
                 list_box.append(&generate_compact(args.paths.clone(), args.and_exit));
             }else {
-                for button in generate_buttons_from_paths(args.paths.clone(), args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
+                for button in generate_buttons_from_paths(args.paths.clone(), args.and_exit,args.and_print,args.and_print_uri, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
                     list_box.append(&button);
                 }
             }
@@ -170,7 +178,7 @@ fn build_source_ui(list_box: ListBox, args: Cli){
                                     };
                                     list_box.append(&generate_compact(paths.clone(),args.and_exit));
                                 } else {
-                                    let button = generate_buttons_from_paths(vec![path],args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all);
+                                    let button = generate_buttons_from_paths(vec![path],args.and_exit, args.and_print, args.and_print_uri, args.icons_only, args.disable_thumbnails, args.icon_size, args.all);
                                     list_box.append(&button[0]);
                                 }
                                 Continue(true)
@@ -252,7 +260,7 @@ fn build_target_ui(list_box: ListBox, args: Cli){
                         list_box.append(&generate_compact(paths.clone(),args.and_exit));
                     } else {
                         // This solution is fast, but it's gonna cause problems when --all is used in combinatio with --target
-                        for button in &generate_buttons_from_paths(new_paths, args.and_exit, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
+                        for button in &generate_buttons_from_paths(new_paths, args.and_exit,args.and_print, args.and_print_uri, args.icons_only, args.disable_thumbnails, args.icon_size, args.all){
                             list_box.append(button);           
                         };
                     }
@@ -264,7 +272,7 @@ fn build_target_ui(list_box: ListBox, args: Cli){
     list_box.append(&button);
 }
 
-fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: bool, disable_thumbnails:bool, icon_size: i32, all: bool) -> Vec<Button>{
+fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, and_print: bool, and_print_uri: bool, icons_only: bool, disable_thumbnails:bool, icon_size: i32, all: bool) -> Vec<Button>{
     let mut button_vec = Vec::new();
     let uri_list = generate_uri_list(&paths);
 
@@ -302,6 +310,26 @@ fn generate_buttons_from_paths(paths: Vec<PathBuf>, and_exit: bool, icons_only: 
         } else {
             let uri = generate_uri_from_path(&path);
             drag_source.connect_prepare(move |_,_,_| Some(ContentProvider::for_bytes("text/uri-list", &uri)));
+        }
+
+        if and_print
+        {
+            let path = path.clone();
+            drag_source.connect_drag_end(move |_, _, _| {
+                println!("{}", &path.display());
+                println!("uri: {}",  std::str::from_utf8(&generate_uri_from_path(&path)).unwrap());
+            });
+        }
+        if and_print_uri
+        {
+            let path = path.clone();
+            drag_source.connect_drag_end(move |_, _, _| {
+                if let Ok(uri) = std::str::from_utf8(&generate_uri_from_path(&path)) {
+                println!("{uri}");
+                } else {
+                eprintln!("Could not provide uri for path: {}", &path.display());
+                }
+            });
         }
 
         if and_exit {
