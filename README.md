@@ -64,28 +64,28 @@ PATH=$PATH:~/.cargo/bin
 
 # Usage
 ```
-USAGE:
-    ripdrag [OPTIONS] [PATHS]...
+Usage: ripdrag [OPTIONS] [PATH]...
 
-ARGS:
-    <PATHS>...    Paths to the files you want to drag
+Arguments:
+  [PATH]...  Paths to the files you want to drag
 
-OPTIONS:
-    -v, --verbose                  Be verbose
-    -t, --target                   Act as a target instead of source
-    -k, --keep                     With --target, keep files to drag out
-    -r, --resizable                Make the window resizable
-    -x, --and-exit                 Exit after first successful drag or drop
-    -i, --icons-only               Only display icons, no labels
-    -d, --disable-thumbnails       Don't load thumbnails from images
-    -s, --icon-size <SIZE>         Size of icons and thumbnails [default: 32]
-    -W, --content-width <WIDTH>    Min width of the main window [default: 360]
-    -H, --content-height <HEIGHT>  Default height of the main window [default: 360]
-    -I, --from-stdin               Accept paths from stdin
-    -a, --all                      Drag all the items together
-    -A, --all-compact              Show only the number of items and drag them together
-    -h, --help                     Print help
-    -V, --version                  Print version
+Options:
+  -v, --verbose                  Be verbose
+  -t, --target                   Act as a target instead of source
+  -k, --keep                     With --target, keep files to drag out
+  -r, --resizable                Make the window resizable
+  -x, --and-exit                 Exit after first successful drag or drop
+  -i, --icons-only               Only display icons, no labels
+  -d, --disable-thumbnails       Don't load thumbnails from images
+  -s, --icon-size <SIZE>         Size of icons and thumbnails [default: 32]
+  -W, --content-width <WIDTH>    Min width of the main window [default: 360]
+  -H, --content-height <HEIGHT>  Default height of the main window [default: 360]
+  -I, --from-stdin               Accept paths from stdin
+  -a, --all                      Drag all the items together
+  -A, --all-compact              Show only the number of items and drag them together
+  -n, --no-click                 Show only the number of items and drag them together
+  -h, --help                     Print help
+  -V, --version                  Print version
 ```
 
 # TODO
