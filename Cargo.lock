@@ -747,7 +747,7 @@ checksum = "b7b6d6190b7594385f61bd3911cd1be99dfddcfc365a4160cc2ab5bff4aed294"
 
 [[package]]
 name = "ripdrag"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "clap",
  "glib-macros 0.18.0",
