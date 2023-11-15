@@ -33,7 +33,9 @@ pub fn generate_content_provider<'a>(
     let bytes = Bytes::from_owned(
         paths
             .into_iter()
-            .fold("".to_string(), |accum, item| format!("{}\n{}", accum, item)),
+            .cloned()
+            .collect::<Vec<String>>()
+            .join("\n")
     );
 
     if bytes.is_empty() {
