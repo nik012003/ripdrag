@@ -83,7 +83,7 @@ Options:
   -I, --from-stdin               Accept paths from stdin
   -a, --all                      Drag all the items together
   -A, --all-compact              Show only the number of items and drag them together
-  -n, --no-click                 Show only the number of items and drag them together
+  -n, --no-click                 Don't open files on click
   -h, --help                     Print help
   -V, --version                  Print version
 ```

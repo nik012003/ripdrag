@@ -71,7 +71,7 @@ struct Cli {
     #[arg(short = 'A', long)]
     all_compact: bool,
 
-    /// Show only the number of items and drag them together
+    /// Don't open files on click
     #[arg(short = 'n', long)]
     no_click: bool,
 
