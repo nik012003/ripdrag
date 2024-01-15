@@ -78,6 +78,10 @@ struct Cli {
     /// Paths to the files you want to drag
     #[arg(value_name = "PATH")]
     paths: Vec<PathBuf>,
+
+    /// Always show basename of each file
+    #[arg(short = 'b', long)]
+    basename: bool,
 }
 
 // switch to Lazy Cell when it is stable.

@@ -148,20 +148,17 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
 
         // show either relative or absolute path
         // This is safe because the file needs to exist
-        let str = if file_object
+        let str = if ARGS.get().unwrap().basename || file_object
             .file()
-            .has_parent(Some(CURRENT_DIRECTORY.get().unwrap()))
-        {
-            CURRENT_DIRECTORY
-                .get()
-                .unwrap()
-                .relative_path(&file_object.file())
-                .expect("Can't make a relative path")
-                .to_str()
-                .expect("Couldn't read file name")
+            .has_parent(Some(CURRENT_DIRECTORY.get().unwrap())
+        ) {
+            file_object.file()
+                .basename().unwrap()
+                .to_str().unwrap()
                 .to_string()
         } else {
-            file_object.file().parse_name().to_string()
+            file_object.file()
+                .parse_name().to_string()
         };
 
         let label = Label::builder()
