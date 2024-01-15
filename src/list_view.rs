@@ -163,6 +163,7 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
 
         let label = Label::builder()
             .label(&str)
+            .hexpand(true)
             .ellipsize(gtk::pango::EllipsizeMode::End)
             .tooltip_text(&str);
 
