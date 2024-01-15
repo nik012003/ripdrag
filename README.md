@@ -84,6 +84,7 @@ Options:
   -a, --all                      Drag all the items together
   -A, --all-compact              Show only the number of items and drag them together
   -n, --no-click                 Don't open files on click
+  -b, --basename                 Always show basename of each file
   -h, --help                     Print help
   -V, --version                  Print version
 ```
