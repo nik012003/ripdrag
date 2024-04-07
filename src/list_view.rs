@@ -110,7 +110,8 @@ fn get_file(row: &CenterBox) -> gio::File {
     } else {
         row.center_widget().unwrap()
     };
-    gio::File::for_path(file_widget.downcast::<Label>().unwrap().text())
+    // This is safe because the tooltip is always set to the full path
+    gio::File::for_path(file_widget.tooltip_text().unwrap())
 }
 
 // Setup the widgets in the ListView
@@ -146,8 +147,11 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
             .and_downcast::<CenterBox>()
             .expect("The child has to be a `Label`.");
 
-        // show either relative or absolute path
         // This is safe because the file needs to exist
+        let path = file_object.file().parse_name().to_string();
+
+        // show either relative or absolute path
+        // only used for the display label
         let str = if ARGS.get().unwrap().basename || file_object
             .file()
             .has_parent(Some(CURRENT_DIRECTORY.get().unwrap())
@@ -157,15 +161,16 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
                 .to_str().unwrap()
                 .to_string()
         } else {
-            file_object.file()
-                .parse_name().to_string()
+            path.to_owned()
         };
 
+        // Always set the tooltip to the full path
+        // The label will change depending on the basename flag
         let label = Label::builder()
             .label(&str)
             .hexpand(true)
             .ellipsize(gtk::pango::EllipsizeMode::End)
-            .tooltip_text(&str);
+            .tooltip_text(&path);
 
         if ARGS.get().unwrap().icons_only {
             file_row.set_start_widget(Some(&label.visible(false).build()));
