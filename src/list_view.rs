@@ -110,6 +110,7 @@ fn get_file(row: &CenterBox) -> gio::File {
     } else {
         row.center_widget().unwrap()
     };
+    // This is safe because the tooltip is always set to the full path
     gio::File::for_path(file_widget.tooltip_text().unwrap())
 }
 
@@ -163,6 +164,8 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
             path.to_owned()
         };
 
+        // Always set the tooltip to the full path
+        // The label will change depending on the basename flag
         let label = Label::builder()
             .label(&str)
             .hexpand(true)
