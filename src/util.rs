@@ -30,17 +30,17 @@ pub fn generate_file_model() -> ListStore {
 pub fn generate_content_provider<'a>(
     paths: impl IntoIterator<Item = &'a String>,
 ) -> Option<ContentProvider> {
-    let bytes = Bytes::from_owned(
-        paths
+    let mut uri_list = paths
             .into_iter()
             .cloned()
             .collect::<Vec<String>>()
-            .join("\n")
-    );
-
-    if bytes.is_empty() {
-        None
+            .join("\r\n");
+    
+    if uri_list.is_empty() {
+        return None
     } else {
+        uri_list += "\r\n";
+        let bytes = Bytes::from(uri_list.as_bytes());
         Some(ContentProvider::for_bytes("text/uri-list", &bytes))
     }
 }
