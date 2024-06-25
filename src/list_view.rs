@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use glib_macros::clone;
 use gtk::gdk::*;
 use gtk::gio::{self, ListStore};
@@ -60,9 +58,10 @@ fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource
             // This will prevent the click to trigger, a drag should happen!
             me.set_state(gtk::EventSequenceState::Claimed);
             let selected = selection.selection();
-            let mut files : HashSet<String> = HashSet::with_capacity(selected.size() as usize);
+            let mut files : Vec<String> = Vec::with_capacity(selected.size() as usize);
+            
             for index in 0..selected.size() {
-                files.insert(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().uri().to_string());
+                files.push(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().uri().to_string());
             }
 
             // Is the activated row also selected?
