@@ -10,6 +10,7 @@ use gtk::glib::{self, clone, set_program_name, Continue, MainContext, Priority};
 use gtk::{gio, Application, ApplicationWindow, EventControllerKey, PolicyType, ScrolledWindow};
 use gtk::prelude::*;
 use list_view::{create_outer_box, generate_list_view};
+use util::setup_drop_target;
 
 mod compact_view;
 mod file_object;
@@ -115,27 +116,29 @@ fn build_ui(app: &Application) {
         );
     }
     // Create a scrollable list
-    let (outer_box, list_data) = if ARGS.get().unwrap().all_compact {
-        // Create compact list
-        (None, generate_compact_view())
-    } else if ARGS.get().unwrap().all {
-        // Create regular list with a drag all button
-        let list = generate_list_view();
-        (Some(create_outer_box(&list).upcast::<gtk::Widget>()), list)
+    let list_data = if ARGS.get().unwrap().all_compact {
+        generate_compact_view()
     } else {
-        // Create regular list
-        (None, generate_list_view())
+        generate_list_view()
     };
+
+    let child = if ARGS.get().unwrap().all {
+        // Crate the drag all button
+        create_outer_box(&list_data)
+    } else {
+        // Use the regular list view
+        list_data.widget
+    };
+
+    if ARGS.get().unwrap().target {
+        setup_drop_target(&list_data.list_model, &child);
+    }
 
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
         .vexpand(true)
         .hexpand(true)
-        .child(if let Some(outer_box) = &outer_box {
-            outer_box
-        } else {
-            &list_data.widget
-        })
+        .child(&child)
         .build();
 
     let titlebar = gtk::HeaderBar::builder()

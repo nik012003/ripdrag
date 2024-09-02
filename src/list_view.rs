@@ -10,7 +10,7 @@ use gtk::prelude::*;
 use crate::file_object::FileObject;
 use crate::util::{
     drag_source_and_exit, generate_content_provider, generate_file_model, setup_drag_source_all,
-    setup_drop_target, ListWidget,
+    ListWidget,
 };
 use crate::{ARGS, CURRENT_DIRECTORY};
 
@@ -30,10 +30,6 @@ pub fn generate_list_view() -> ListWidget {
         .downcast::<ListStore>()
         .unwrap();
     let widget = list_view.upcast::<Widget>();
-
-    if ARGS.get().unwrap().target {
-        setup_drop_target(&model, &widget);
-    }
 
     ListWidget {
         list_model: model,
@@ -178,7 +174,7 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
 }
 
 /// Creates an outer box that adds a drag all button to the top
-pub fn create_outer_box(list: &ListWidget) -> gtk::Box {
+pub fn create_outer_box(list: &ListWidget) -> Widget {
     let outer_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
     let row = gtk::CenterBox::builder()
         .height_request(ARGS.get().unwrap().icon_size)
@@ -214,5 +210,6 @@ pub fn create_outer_box(list: &ListWidget) -> gtk::Box {
     row.add_controller(drag_source);
     outer_box.append(&row);
     outer_box.append(&list.widget);
+    let outer_box = outer_box.upcast::<Widget>();
     outer_box
 }
