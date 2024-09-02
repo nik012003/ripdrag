@@ -81,7 +81,7 @@ Options:
   -W, --content-width <WIDTH>    Min width of the main window [default: 360]
   -H, --content-height <HEIGHT>  Default height of the main window [default: 360]
   -I, --from-stdin               Accept paths from stdin
-  -a, --all                      Drag all the items together
+  -a, --all                      Show a drag all button
   -A, --all-compact              Show only the number of items and drag them together
   -n, --no-click                 Don't open files on click
   -b, --basename                 Always show basename of each file

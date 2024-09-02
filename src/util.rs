@@ -1,8 +1,8 @@
 use gtk::gdk::{ContentProvider, DragAction, FileList};
 use gtk::gio::{self, File, ListStore};
 use gtk::glib::{clone, Bytes};
-use gtk::prelude::*;
 use gtk::{gdk, glib, DragSource, DropTarget, EventSequenceState, Widget};
+use gtk::prelude::*;
 
 use crate::file_object::FileObject;
 use crate::ARGS;
@@ -31,13 +31,13 @@ pub fn generate_content_provider<'a>(
     paths: impl IntoIterator<Item = &'a String>,
 ) -> Option<ContentProvider> {
     let mut uri_list = paths
-            .into_iter()
-            .cloned()
-            .collect::<Vec<String>>()
-            .join("\r\n");
-    
+        .into_iter()
+        .cloned()
+        .collect::<Vec<String>>()
+        .join("\r\n");
+
     if uri_list.is_empty() {
-        return None
+        return None;
     } else {
         uri_list += "\r\n";
         let bytes = Bytes::from(uri_list.as_bytes());

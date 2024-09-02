@@ -7,7 +7,7 @@ use gtk::subclass::prelude::*;
 use gtk::{glib, CssProvider, DragSource, Label, Widget};
 
 use crate::util::{
-    drag_source_and_exit, generate_file_model, setup_drag_source_all, setup_drop_target, ListWidget,
+    drag_source_and_exit, generate_file_model, setup_drag_source_all, ListWidget,
 };
 
 pub fn generate_compact_view() -> ListWidget {
@@ -35,9 +35,6 @@ pub fn generate_compact_view() -> ListWidget {
     obj.set_cursor_from_name(Some("grab"));
 
     obj.add_controller(drag_source);
-    if ARGS.get().unwrap().target {
-        setup_drop_target(&model, &obj);
-    }
 
     ListWidget {
         list_model: model,

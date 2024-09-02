@@ -7,9 +7,10 @@ use compact_view::generate_compact_view;
 use file_object::FileObject;
 use gtk::gio::{ApplicationFlags, ListStore};
 use gtk::glib::{self, clone, set_program_name, Continue, MainContext, Priority};
-use gtk::prelude::*;
 use gtk::{gio, Application, ApplicationWindow, EventControllerKey, PolicyType, ScrolledWindow};
-use list_view::generate_list_view;
+use gtk::prelude::*;
+use list_view::{create_outer_box, generate_list_view};
+use util::setup_drop_target;
 
 mod compact_view;
 mod file_object;
@@ -63,7 +64,7 @@ struct Cli {
     #[arg(short = 'I', long)]
     from_stdin: bool,
 
-    /// Drag all the items together
+    /// Show a drag all button
     #[arg(short = 'a', long)]
     all: bool,
 
@@ -121,11 +122,23 @@ fn build_ui(app: &Application) {
         generate_list_view()
     };
 
+    let child = if ARGS.get().unwrap().all {
+        // Crate the drag all button
+        create_outer_box(&list_data)
+    } else {
+        // Use the regular list view
+        list_data.widget
+    };
+
+    if ARGS.get().unwrap().target {
+        setup_drop_target(&list_data.list_model, &child);
+    }
+
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(PolicyType::Never) //  Disable horizontal scrolling
         .vexpand(true)
         .hexpand(true)
-        .child(&list_data.widget)
+        .child(&child)
         .build();
 
     let titlebar = gtk::HeaderBar::builder()
