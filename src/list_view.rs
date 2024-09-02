@@ -1,11 +1,11 @@
-use glib_macros::clone;
-use gtk::gdk::*;
+use glib::clone;
 use gtk::gio::{self, ListStore};
-use gtk::prelude::*;
 use gtk::{
     gdk, CenterBox, DragSource, Label, ListItem, ListView, MultiSelection, SignalListItemFactory,
     Widget,
 };
+use gtk::gdk::*;
+use gtk::prelude::*;
 
 use crate::file_object::FileObject;
 use crate::util::{
@@ -48,33 +48,25 @@ fn build_list_data() -> (MultiSelection, SignalListItemFactory) {
 
 fn create_drag_source(row: &CenterBox, selection: &MultiSelection) -> DragSource {
     let drag_source = DragSource::new();
-    if ARGS.get().unwrap().all {
-        setup_drag_source_all(
-            &drag_source,
-            &selection.model().unwrap().downcast::<ListStore>().unwrap(),
-        );
-    } else {
-        drag_source.connect_prepare(clone!(@weak row, @weak selection, => @default-return None, move |me, _, _| {
-            // This will prevent the click to trigger, a drag should happen!
-            me.set_state(gtk::EventSequenceState::Claimed);
-            let selected = selection.selection();
-            let mut files : Vec<String> = Vec::with_capacity(selected.size() as usize);
-            
-            for index in 0..selected.size() {
-                files.push(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().uri().to_string());
-            }
+    drag_source.connect_prepare(clone!(@weak row, @weak selection, => @default-return None, move |me, _, _| {
+        // This will prevent the click to trigger, a drag should happen!
+        me.set_state(gtk::EventSequenceState::Claimed);
+        let selected = selection.selection();
+        let mut files : Vec<String> = Vec::with_capacity(selected.size() as usize);
+        for index in 0..selected.size() {
+            files.push(selection.item(selected.nth(index as u32)).unwrap().downcast::<FileObject>().unwrap().file().uri().to_string());
+        }
 
-            // Is the activated row also selected?
-            let row_file = get_file(&row).uri().to_string();
-            if !files.contains(&row_file)
-            {
-                selection.unselect_all();
-                generate_content_provider(&[row_file])
-            } else {
-                generate_content_provider(&files)
-            }
-        }));
-    }
+        // Is the activated row also selected?
+        let row_file = get_file(&row).uri().to_string();
+        if !files.contains(&row_file)
+        {
+            selection.unselect_all();
+            generate_content_provider(&[row_file])
+        } else {
+            generate_content_provider(&files)
+        }
+    }));
 
     if ARGS.get().unwrap().and_exit {
         drag_source_and_exit(&drag_source);
@@ -151,13 +143,17 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
 
         // show either relative or absolute path
         // only used for the display label
-        let str = if ARGS.get().unwrap().basename || file_object
-            .file()
-            .has_parent(Some(CURRENT_DIRECTORY.get().unwrap())
-        ) {
-            file_object.file()
-                .basename().unwrap()
-                .to_str().unwrap()
+        let str = if ARGS.get().unwrap().basename
+            || file_object
+                .file()
+                .has_parent(Some(CURRENT_DIRECTORY.get().unwrap()))
+        {
+            file_object
+                .file()
+                .basename()
+                .unwrap()
+                .to_str()
+                .unwrap()
                 .to_string()
         } else {
             path.to_owned()
@@ -179,4 +175,44 @@ fn setup_factory(factory: &SignalListItemFactory, list: &MultiSelection) {
             file_row.set_start_widget(Some(&file_object.thumbnail()))
         }
     });
+}
+
+/// Creates an outer box that adds a drag all button to the top
+pub fn create_outer_box(list: &ListWidget) -> gtk::Box {
+    let outer_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    let row = gtk::CenterBox::builder()
+        .height_request(ARGS.get().unwrap().icon_size)
+        .focusable(true)
+        .build();
+    let label = Label::builder()
+        .label("Drag All Items")
+        .css_classes(["drag"])
+        .hexpand(true)
+        .tooltip_text("Drag All Items")
+        .ellipsize(gtk::pango::EllipsizeMode::End);
+    row.set_center_widget(Some(&label.build()));
+
+    let drag_source = DragSource::new();
+    setup_drag_source_all(&drag_source, &list.list_model);
+    if !ARGS.get().unwrap().no_click {
+        let gesture_click = create_gesture_click(&row);
+        row.add_controller(gesture_click);
+    }
+    if ARGS.get().unwrap().and_exit {
+        drag_source_and_exit(&drag_source);
+    }
+
+    // Add styling
+    let provider = gtk::CssProvider::new();
+    provider.load_from_data(include_str!("style.css"));
+    gtk::style_context_add_provider_for_display(
+        &gtk::gdk::Display::default().expect("Could not connect to a display."),
+        &provider,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+
+    row.add_controller(drag_source);
+    outer_box.append(&row);
+    outer_box.append(&list.widget);
+    outer_box
 }
