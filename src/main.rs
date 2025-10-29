@@ -109,11 +109,10 @@ fn main() {
 fn build_ui(app: &Application) {
     // Parse arguments and check if files exist
     for path in &ARGS.get().unwrap().paths {
-        assert!(
-            path.exists(),
-            "{0} : no such file or directory",
-            path.display()
-        );
+        if !path.exists() {
+            eprintln!("{0}: No such file or directory", path.display());
+            std::process::exit(1);
+        }
     }
     // Create a scrollable list
     let list_data = if ARGS.get().unwrap().all_compact {
