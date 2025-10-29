@@ -1,8 +1,8 @@
 use gtk::gdk::{ContentProvider, DragAction, FileList};
 use gtk::gio::{self, File, ListStore};
 use gtk::glib::{clone, Bytes};
-use gtk::{gdk, glib, DragSource, DropTarget, EventSequenceState, Widget};
 use gtk::prelude::*;
+use gtk::{gdk, glib, DragSource, DropTarget, EventSequenceState, Widget};
 
 use crate::file_object::FileObject;
 use crate::ARGS;
@@ -14,7 +14,10 @@ pub struct ListWidget {
 }
 
 pub fn generate_file_model() -> ListStore {
-    let file_model = ListStore::new(FileObject::static_type());
+    let file_model = ListStore::builder()
+        .item_type(FileObject::static_type())
+        .build();
+
     let files: Vec<FileObject> = ARGS
         .get()
         .unwrap()
@@ -46,14 +49,27 @@ pub fn generate_content_provider<'a>(
 }
 /// For the -a or -A flag.
 pub fn setup_drag_source_all(drag_source: &DragSource, list_model: &ListStore) {
-    drag_source.connect_prepare(
-        clone!(@weak list_model => @default-return None, move |me, _, _| {
+    drag_source.connect_prepare(clone!(
+        #[weak]
+        list_model,
+        #[upgrade_or_default]
+        move |me, _, _| {
             me.set_state(EventSequenceState::Claimed);
-            let files: Vec<String> = list_model.into_iter().flatten().map(|file_object| {
-                file_object.downcast::<FileObject>().unwrap().file().uri().to_string()}).collect();
+            let files: Vec<String> = list_model
+                .into_iter()
+                .flatten()
+                .map(|file_object| {
+                    file_object
+                        .downcast::<FileObject>()
+                        .unwrap()
+                        .file()
+                        .uri()
+                        .to_string()
+                })
+                .collect();
             generate_content_provider(&files)
-        }),
-    );
+        }
+    ));
 }
 
 fn create_tmp_file(file: &File) -> Option<FileObject> {
@@ -120,42 +136,47 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
         .build();
     drop_target.set_types(&[FileList::static_type(), glib::types::Type::STRING]);
 
-    drop_target.connect_drop(
-        clone!(@weak model => @default-return false, move |_, value, _, _|
-            {
-                let mut files_vec: Vec<File> = vec![];
+    drop_target.connect_drop(clone!(
+        #[weak]
+        model,
+        #[upgrade_or]
+        false,
+        move |_, value, _, _| {
+            let mut files_vec: Vec<File> = vec![];
 
-                if let Ok(file_uris) = value.get::<&str>(){
-                    files_vec = file_uris.split('\n')
-                        .collect::<Vec<&str>>()
-                        .iter()
-                        .filter_map(|uri| glib::Uri::parse(uri, glib::UriFlags::PARSE_RELAXED).ok())
-                        .map(|uri| File::for_uri(uri.to_str().as_str()))
-                        .collect();
-                }
-                else if let Ok(files) = value.get::<gdk::FileList>() {
-                    files_vec = files.files();
-                }
+            if let Ok(file_uris) = value.get::<&str>() {
+                files_vec = file_uris
+                    .split('\n')
+                    .collect::<Vec<&str>>()
+                    .iter()
+                    .filter_map(|uri| glib::Uri::parse(uri, glib::UriFlags::PARSE_RELAXED).ok())
+                    .map(|uri| File::for_uri(uri.to_str().as_str()))
+                    .collect();
+            } else if let Ok(files) = value.get::<gdk::FileList>() {
+                files_vec = files.files();
+            }
 
-                if files_vec.is_empty(){
-                    return  false;
-                }
+            if files_vec.is_empty() {
+                return false;
+            }
 
-                let file_objs:Vec<FileObject> = files_vec.iter()
-                    .filter_map(|item| {
-                        println!("{}", item.parse_name());
-                        create_tmp_file(item)
-                    }).collect();
+            for item in &files_vec {
+                println!("{}", item.parse_name());
+            }
 
-                if ARGS.get().unwrap().keep {
-                    model.extend_from_slice(&file_objs);
-                } else if ARGS.get().unwrap().and_exit{
-                    std::process::exit(0);
-                }
+            if ARGS.get().unwrap().keep {
+                let file_objs: Vec<FileObject> = files_vec
+                    .iter()
+                    .filter_map(|item| create_tmp_file(item))
+                    .collect();
+                model.extend_from_slice(&file_objs);
+            } else if ARGS.get().unwrap().and_exit {
+                std::process::exit(0);
+            }
 
-                true
-        }),
-    );
+            true
+        }
+    ));
 
     widget.add_controller(drop_target);
 }

@@ -6,9 +6,9 @@ use clap::Parser;
 use compact_view::generate_compact_view;
 use file_object::FileObject;
 use gtk::gio::{ApplicationFlags, ListStore};
-use gtk::glib::{self, clone, set_program_name, Continue, MainContext, Priority};
-use gtk::{gio, Application, ApplicationWindow, EventControllerKey, PolicyType, ScrolledWindow};
+use gtk::glib::{self, clone, set_program_name, Propagation};
 use gtk::prelude::*;
+use gtk::{gio, Application, ApplicationWindow, EventControllerKey, PolicyType, ScrolledWindow};
 use list_view::{create_outer_box, generate_list_view};
 use util::setup_drop_target;
 
@@ -162,7 +162,7 @@ fn build_ui(app: &Application) {
         if [gtk::gdk::Key::Escape, gtk::gdk::Key::q, gtk::gdk::Key::Q].contains(&key) {
             std::process::exit(0)
         }
-        glib::signal::Inhibit(false)
+        Propagation::Proceed
     });
 
     window.add_controller(event_controller);
@@ -177,13 +177,13 @@ fn build_ui(app: &Application) {
 /// Parses the input and checks if it is an existing file path.
 /// Valid files will be added to the model.
 fn listen_to_stdin(model: &ListStore) {
-    let (sender, receiver) = MainContext::channel(Priority::default());
+    let (sender, receiver) = async_channel::bounded(1);
     gio::spawn_blocking(move || {
         let stdin = io::stdin();
         for path in stdin.lock().lines().flatten() {
             let file = gio::File::for_path(path);
             if file.query_exists(gio::Cancellable::NONE) {
-                if let Err(err) = sender.send(file) {
+                if let Err(err) = sender.send_blocking(file) {
                     println!("{}", err);
                 }
             } else {
@@ -192,12 +192,14 @@ fn listen_to_stdin(model: &ListStore) {
             let _ = io::stdout().flush();
         }
     });
-    // weak references don't work
-    receiver.attach(
-        None,
-        clone!(@weak model => @default-return Continue(false), move |file| {
-            model.append(&FileObject::new(&file));
-            Continue(true)
-        }),
-    );
+
+    glib::spawn_future_local(clone!(
+        #[weak]
+        model,
+        async move {
+            while let Ok(file) = receiver.recv().await {
+                model.append(&FileObject::new(&file));
+            }
+        }
+    ));
 }

@@ -6,9 +6,7 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{glib, CssProvider, DragSource, Label, Widget};
 
-use crate::util::{
-    drag_source_and_exit, generate_file_model, setup_drag_source_all, ListWidget,
-};
+use crate::util::{drag_source_and_exit, generate_file_model, setup_drag_source_all, ListWidget};
 
 pub fn generate_compact_view() -> ListWidget {
     let file_model = generate_file_model();
@@ -64,12 +62,17 @@ impl CompactLabel {
 
         obj.append(&obj.label());
 
-        obj.model()
-            .connect_items_changed(clone!(@weak obj => @default-return (),
-                move |_,_,_,_| {
+        obj.model().connect_items_changed(clone!(
+            #[weak]
+            obj,
+            move |_, _, _, _| {
                 obj.label().set_text(&create_string(obj.model().n_items()));
-                obj.label().set_tooltip_text(Some(&format!("Drag {}", create_string(obj.model().n_items()))));
-            }));
+                obj.label().set_tooltip_text(Some(&format!(
+                    "Drag {}",
+                    create_string(obj.model().n_items())
+                )));
+            }
+        ));
 
         obj
     }
@@ -83,7 +86,7 @@ mod imp {
 
     use super::*;
 
-    #[derive(Default, Properties)]
+    #[derive(Properties)]
     #[properties(wrapper_type = super::CompactLabel)]
     pub struct CompactLabel {
         #[property(get, construct_only)]
@@ -115,4 +118,13 @@ mod imp {
     impl WidgetImpl for CompactLabel {}
 
     impl BoxImpl for CompactLabel {}
+
+    impl Default for CompactLabel {
+        fn default() -> Self {
+            Self {
+                model: RefCell::new(ListStore::builder().build()),
+                label: Default::default(),
+            }
+        }
+    }
 }

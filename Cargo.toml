@@ -12,10 +12,11 @@ exclude = ["/.vscode"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.1.8", features = ["derive"] }
-gtk = { version = "0.6.6", package = "gtk4", features = ["v4_6"] }
-glib-macros = "0.19.3"
-opener = "0.7.0"
+clap = { version = "4.5.51", features = ["derive"] }
+gtk = { version = "0.10.1", package = "gtk4", features = ["v4_6"] }
+glib-macros = "0.21.2"
+opener = "0.8.3"
+async-channel = "2.5.0"
 
 [profile.release]
 strip = true

@@ -1,5 +1,5 @@
 use gio::FileQueryInfoFlags;
-use glib::{GString, MainContext, Object, Priority, Properties};
+use glib::{GString, Object, Properties};
 use glib_macros::clone;
 use gtk::gdk_pixbuf::Pixbuf;
 use gtk::prelude::*;
@@ -44,11 +44,12 @@ impl FileObject {
 
         // For every image a thumbnail of the image is sent. When it is not an image a None is sent.
         // There is no thumbnail for GIFs.
-        let (sender, receiver) = MainContext::channel(Priority::default());
+        let (sender, receiver) = async_channel::bounded(1);
+
         gio::spawn_blocking(move || {
             let print_err = |err| eprintln!("{}", err);
             if !file.query_exists(gio::Cancellable::NONE) {
-                let _ = sender.send(None).map_err(print_err);
+                let _ = sender.send_blocking(None).map_err(print_err);
             }
 
             let mime_type = file.mime_type();
@@ -64,7 +65,7 @@ impl FileObject {
                 );
                 if let Ok(image) = image {
                     let _ = sender
-                        .send(Some((
+                        .send_blocking(Some((
                             image.read_pixel_bytes(),
                             image.colorspace(),
                             image.has_alpha(),
@@ -76,28 +77,29 @@ impl FileObject {
                         .map_err(print_err);
                 } else {
                     eprintln!("{}", image.unwrap_err());
-                    let _ = sender.send(None).map_err(print_err);
+                    let _ = sender.send_blocking(None).map_err(print_err);
                 }
             } else {
-                let _ = sender.send(None).map_err(print_err);
+                let _ = sender.send_blocking(None).map_err(print_err);
             }
         });
         // Sets the thumbnail and closes the receiver channel regardless of what was sent.
-        receiver.attach(
-            None,
-            clone!(@weak obj => @default-return
-            glib::Continue(false), move |image| {
-                if let Some(image) = image {
+
+        glib::spawn_future_local(clone!(
+            #[weak]
+            obj,
+            async move {
+                if let Ok(Some(image)) = receiver.recv().await {
                     let obj: FileObject = obj;
                     let thumbnail = obj.thumbnail();
                     // (apply gdk_pixbuf::Pixbuf::from_bytes image)
-                    let image = Pixbuf::from_bytes(&image.0, image.1, image.2, image.3, image.4, image.5, image.6);
-                    thumbnail.set_from_paintable(Some(&gdk::Texture::for_pixbuf(&image)));
+                    let image = Pixbuf::from_bytes(
+                        &image.0, image.1, image.2, image.3, image.4, image.5, image.6,
+                    );
+                    thumbnail.set_paintable(Some(&gdk::Texture::for_pixbuf(&image)));
                 }
-                glib::Continue(false)
-            }),
-        );
-
+            }
+        ));
         obj
     }
 }
