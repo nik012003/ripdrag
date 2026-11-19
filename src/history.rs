@@ -44,16 +44,21 @@ pub fn record<P: AsRef<Path>>(paths: impl IntoIterator<Item = P>) {
     }
 }
 
-/// Returns up to `limit` distinct paths that still exist, newest first.
-pub fn load(limit: usize) -> Vec<PathBuf> {
+/// Returns the most recent distinct paths that still exist and are not in PATH, newest first.
+pub fn load() -> Vec<PathBuf> {
     let entries = fs::read_to_string(history_file()).unwrap_or_default();
-    let mut seen = HashSet::new();
+    let mut seen: HashSet<PathBuf> = ARGS
+        .get()
+        .unwrap()
+        .paths
+        .iter()
+        .filter_map(|path| fs::canonicalize(path).ok())
+        .collect();
     entries
         .lines()
         .rev()
-        .filter(|entry| seen.insert(*entry))
         .map(PathBuf::from)
+        .filter(|path| seen.insert(path.clone()))
         .filter(|path| path.exists())
-        .take(limit)
         .collect()
 }

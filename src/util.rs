@@ -18,12 +18,11 @@ pub fn generate_file_model() -> ListStore {
         .item_type(FileObject::static_type())
         .build();
 
-    let recent_paths = ARGS
-        .get()
-        .unwrap()
-        .history
-        .map(history::load)
-        .unwrap_or_default();
+    let recent_paths = if ARGS.get().unwrap().history {
+        history::load()
+    } else {
+        vec![]
+    };
     let files: Vec<FileObject> = ARGS
         .get()
         .unwrap()

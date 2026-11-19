@@ -85,9 +85,9 @@ struct Cli {
     #[arg(short = 'b', long)]
     basename: bool,
 
-    /// Show the N most recently used files from the history
-    #[arg(short = 'R', long, value_name = "N", num_args = 0..=1, default_missing_value = "20")]
-    history: Option<usize>,
+    /// Show the most recently used files from the history
+    #[arg(short = 'R', long)]
+    history: bool,
 
     /// Don't save the files of this run to the history
     #[arg(short = 'N', long)]
