@@ -16,6 +16,8 @@ Many applications expect files to be dragged into them. Normally you would have 
 
 Used in combination with a fuzzy finder like [fzf](https://github.com/junegunn/fzf) - e.g. ```ripdrag $(fzf)``` - can make for an amazingly quick and painless terminal experience.
 
+Need the same files again? ripdrag remembers what you opened with it, so ```ripdrag -R``` brings them back, most recent first. The history is kept in ```~/.local/share/ripdrag/history```, and ```ripdrag -N``` skips it for files you don't want remembered.
+
 # Installation
 <details>
   <summary>Click to see the installation guide</summary>
@@ -85,6 +87,8 @@ Options:
   -A, --all-compact              Show only the number of items and drag them together
   -n, --no-click                 Don't open files on click
   -b, --basename                 Always show basename of each file
+  -R, --history                  Show the most recently used files from the history
+  -N, --no-history               Don't save the files of this run to the history
   -h, --help                     Print help
   -V, --version                  Print version
 ```
