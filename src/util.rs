@@ -5,7 +5,7 @@ use gtk::prelude::*;
 use gtk::{gdk, glib, DragSource, DropTarget, EventSequenceState, Widget};
 
 use crate::file_object::FileObject;
-use crate::ARGS;
+use crate::{history, ARGS};
 
 /// Helper record type.
 pub struct ListWidget {
@@ -18,11 +18,17 @@ pub fn generate_file_model() -> ListStore {
         .item_type(FileObject::static_type())
         .build();
 
+    let recent_paths = if ARGS.get().unwrap().history {
+        history::load()
+    } else {
+        vec![]
+    };
     let files: Vec<FileObject> = ARGS
         .get()
         .unwrap()
         .paths
         .iter()
+        .chain(&recent_paths)
         .map(|path| FileObject::new(&File::for_path(path)))
         .collect();
     file_model.extend_from_slice(&files);
@@ -158,6 +164,7 @@ pub fn setup_drop_target(model: &ListStore, widget: &Widget) {
             for item in &files_vec {
                 println!("{}", item.parse_name());
             }
+            history::record(files_vec.iter().filter_map(|file| file.path()));
 
             if ARGS.get().unwrap().keep {
                 let file_objs: Vec<FileObject> = files_vec

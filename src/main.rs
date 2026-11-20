@@ -14,6 +14,7 @@ use util::setup_drop_target;
 
 mod compact_view;
 mod file_object;
+mod history;
 mod list_view;
 mod util;
 
@@ -83,6 +84,14 @@ struct Cli {
     /// Always show basename of each file
     #[arg(short = 'b', long)]
     basename: bool,
+
+    /// Show the most recently used files from the history
+    #[arg(short = 'R', long)]
+    history: bool,
+
+    /// Don't save the files of this run to the history
+    #[arg(short = 'N', long)]
+    no_history: bool,
 }
 
 // switch to Lazy Cell when it is stable.
@@ -114,6 +123,7 @@ fn build_ui(app: &Application) {
             std::process::exit(1);
         }
     }
+    history::record(&ARGS.get().unwrap().paths);
     // Create a scrollable list
     let list_data = if ARGS.get().unwrap().all_compact {
         generate_compact_view()
@@ -182,6 +192,7 @@ fn listen_to_stdin(model: &ListStore) {
         for path in stdin.lock().lines().flatten() {
             let file = gio::File::for_path(path);
             if file.query_exists(gio::Cancellable::NONE) {
+                history::record(file.path());
                 if let Err(err) = sender.send_blocking(file) {
                     println!("{}", err);
                 }

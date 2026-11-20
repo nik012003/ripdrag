@@ -85,6 +85,8 @@ Options:
   -A, --all-compact              Show only the number of items and drag them together
   -n, --no-click                 Don't open files on click
   -b, --basename                 Always show basename of each file
+  -R, --history                  Show the most recently used files from the history
+  -N, --no-history               Don't save the files of this run to the history
   -h, --help                     Print help
   -V, --version                  Print version
 ```
